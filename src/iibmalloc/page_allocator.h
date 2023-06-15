@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------------
  * Copyright (c) 2018, OLogN Technologies AG
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  *     * Neither the name of the <organization> nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,21 +24,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * -------------------------------------------------------------------------------
- * 
+ *
  * Per-thread bucket allocator
- * Page Allocator: 
+ * Page Allocator:
  *     - returns a requested number of allocated (or previously cached) pages
  *     - accepts a pointer to pages to be deallocated (pointer to and number of
  *       pages must be that from one of requests for allocation)
- * 
+ *
  * v.1.00    May-09-2018    Initial release
- * 
+ *
  * -------------------------------------------------------------------------------*/
 
- 
+
 #ifndef PAGE_ALLOCATOR_H
 #define PAGE_ALLOCATOR_H
 
+#include <cstdio>
 #include "iibmalloc_common.h"
 
 #define GET_PERF_DATA
@@ -113,7 +114,7 @@ struct MemoryBlockListItem
 	{
 		return next;
 	}
-	
+
 	MemoryBlockListItem* listGetPrev()
 	{
 		return prev;
@@ -153,7 +154,7 @@ private:
 	uint32_t count = 0;
 	MemoryBlockListItem lst;
 public:
-	
+
 	MemoryBlockList()
 	{
 		initialize();

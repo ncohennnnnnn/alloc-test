@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------------
  * Copyright (c) 2018, OLogN Technologies AG
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  *     * Neither the name of the <organization> nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,18 +24,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * -------------------------------------------------------------------------------
- * 
+ *
  * Per-thread bucket allocator
- * 
+ *
  * v.1.00    May-09-2018    Initial release
- * 
+ *
  * -------------------------------------------------------------------------------*/
- 
- 
+
+
 #include "page_allocator.h"
 
 #include <cstdlib>
 #include <cstddef>
+#include <cerrno>
 #include <memory>
 #include <cstring>
 #include <limits>
@@ -56,7 +57,7 @@ size_t VirtualMemory::getPageSize()
 {
 	long sz = sysconf(_SC_PAGESIZE);
 	assert(sz != -1);
-	return sz;  
+	return sz;
 }
 
 /*static*/
@@ -125,7 +126,7 @@ void* VirtualMemory::AllocateAddressSpace(size_t size)
  //   msync(ptr, size, MS_SYNC|MS_INVALIDATE);
     return ptr;
 }
- 
+
 void* VirtualMemory::CommitMemory(void* addr, size_t size)
 {
 //    void * ptr = mmap(addr, size, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED|MAP_ANON, -1, 0);
@@ -140,13 +141,13 @@ void* VirtualMemory::CommitMemory(void* addr, size_t size)
 //    msync(addr, size, MS_SYNC|MS_INVALIDATE);
     return ptr;
 }
- 
+
 void VirtualMemory::DecommitMemory(void* addr, size_t size)
 {
-    // instead of unmapping the address, we're just gonna trick 
-    // the TLB to mark this as a new mapped area which, due to 
+    // instead of unmapping the address, we're just gonna trick
+    // the TLB to mark this as a new mapped area which, due to
     // demand paging, will not be committed until used.
- 
+
     void * ptr = mmap(addr, size, PROT_NONE, MAP_FIXED|MAP_PRIVATE|MAP_ANON, -1, 0);
  	if (ptr == (void*)(-1))
 	{
@@ -157,7 +158,7 @@ void VirtualMemory::DecommitMemory(void* addr, size_t size)
 	}
    msync(addr, size, MS_SYNC|MS_INVALIDATE);
 }
- 
+
 void VirtualMemory::FreeAddressSpace(void* addr, size_t size)
 {
     int ret = msync(addr, size, MS_SYNC);
