@@ -51,8 +51,25 @@
 #endif
 
 #include "test_common.h"
-#include "void_allocator.h" // used as an estimation of the cost of test itself
 
+#if !ALLOC_TEST_HWMALLOC && !ALLOC_TEST_TFMALLOC && !NEW_DELETE_WITH_FANCY_POINTERS
+#include "void_allocator.h" // used as an estimation of the cost of test itself
+#else 
+#include "void_fptr_allocator.h" // used as an estimation of the cost of test itself
+template<typename T>
+struct pointer_traits {
+	static auto to_address(T p) noexcept {
+		return p.get();
+	}
+};
+
+template<typename T>
+struct pointer_traits<T*> {
+	static auto to_address(T* p) noexcept {
+		return p;
+	}
+};
+#endif
 
 class PRNG
 {
@@ -274,18 +291,40 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 	assert( maxItems <= UINT32_MAX );
 	Pareto_80_20_6_Init( paretoData, (uint32_t)maxItems );
 
+	#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+
+	using pointer =decltype(allocatorUnderTest.allocate(1));
+	using traits = pointer_traits<pointer>;
+
+	pointer fbaseBuff = nullptr;
+
+	#endif
+
 	struct TestBin
 	{
 		uint8_t* ptr;
 		uint32_t sz;
 		uint32_t reincarnation;
+		#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+		pointer fptr;
+		#endif
 	};
 
 	TestBin* baseBuff = nullptr; 
-	if constexpr ( !allocatorUnderTest.isFake() )
+	if constexpr ( !allocatorUnderTest.isFake() ) {
+		#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+		fbaseBuff = allocatorUnderTest.allocate( maxItems * sizeof(TestBin) );
+		baseBuff = reinterpret_cast<TestBin*>( traits::to_address( fbaseBuff ));
+		#else
 		baseBuff = reinterpret_cast<TestBin*>( allocatorUnderTest.allocate( maxItems * sizeof(TestBin) ) );
-	else
+		#endif
+	} else
+		#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+		fbaseBuff = allocatorUnderTest.allocateSlots( maxItems * sizeof(TestBin) );
+		baseBuff = reinterpret_cast<TestBin*>( traits::to_address( fbaseBuff ));
+		#else
 		baseBuff = reinterpret_cast<TestBin*>( allocatorUnderTest.allocateSlots( maxItems * sizeof(TestBin) ) );
+		#endif
 	assert( baseBuff );
 	allocatedSz +=  maxItems * sizeof(TestBin);
 	memset( baseBuff, 0, maxItems * sizeof( TestBin ) );
@@ -302,7 +341,13 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				size_t randNumSz = rng.rng64();
 				size_t sz = calcSizeWithStatsAdjustment( randNumSz, maxItemSizeExp );
 				baseBuff[i*32+j].sz = (uint32_t)sz;
+				#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+				pointer tmp = allocatorUnderTest.allocate( sz );
+				baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( traits::to_address(tmp) );
+				baseBuff[i*32+j].fptr = tmp;
+				#else
 				baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( allocatorUnderTest.allocate( sz ) );
+				#endif
 				if constexpr ( doMemAccess )
 				{
 					if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -364,14 +409,23 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 #ifdef COLLECT_USER_MAX_ALLOCATED
 				allocatedSz -= baseBuff[idx].sz;
 #endif
-				allocatorUnderTest.deallocate( baseBuff[idx].ptr );
+				#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+				allocatorUnderTest.deallocate( baseBuff[idx].fptr );
+				#else
+				allocatorUnderTest.deallocate( baseBuff[idx].ptr);
+				#endif
 				baseBuff[idx].ptr = 0;
 			}
 			else
 			{
 				size_t sz = calcSizeWithStatsAdjustment( rng.rng64(), maxItemSizeExp );
 				baseBuff[idx].sz = (uint32_t)sz;
+				#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+				auto tmp = allocatorUnderTest.allocate( sz );
+				baseBuff[idx].ptr = reinterpret_cast<uint8_t*>(traits::to_address(tmp) );
+				#else
 				baseBuff[idx].ptr = reinterpret_cast<uint8_t*>( allocatorUnderTest.allocate( sz ) );
+				#endif
 				if constexpr ( doMemAccess )
 				{
 					if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -428,13 +482,26 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 						}
 				}
 			}
-			allocatorUnderTest.deallocate( baseBuff[idx].ptr );
+
+			#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
+			allocatorUnderTest.deallocate( baseBuff[idx].fptr );
+			#else
+			allocatorUnderTest.deallocate( baseBuff[idx].ptr);
+			#endif
 		}
 
+	#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
 	if constexpr ( !allocatorUnderTest.isFake() )
-		allocatorUnderTest.deallocate( baseBuff );
+		allocatorUnderTest.deallocate( fbaseBuff );
+	else 
+		allocatorUnderTest.deallocateSlots( fbaseBuff );
+	#else
+	if constexpr ( !allocatorUnderTest.isFake() )
+		allocatorUnderTest.deallocate( baseBuff);
 	else
 		allocatorUnderTest.deallocateSlots( baseBuff );
+	#endif
+
 	allocatorUnderTest.deinit();
 	allocatorUnderTest.getTestRes()->rdtscExit = __rdtsc();
 	allocatorUnderTest.getTestRes()->innerDur = GetMillisecondCount() - start;

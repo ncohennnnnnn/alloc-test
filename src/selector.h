@@ -40,11 +40,24 @@
 // (2) define MyAllocatorT properly
 // (3) make sure other inclusions and/or definitions are removed or commented out :)
 
-#include "new_delete_allocator.h"
-typedef NewDeleteAllocatorForTest MyAllocatorT;
-
 //#include "iib_allocator.h"
 //typedef IibmallocAllocatorForTest MyAllocatorT;
 
+#if ALLOC_TEST_HWMALLOC
+
+#include "hw_allocator.h"
+typedef hwmallocAllocatorForTest MyAllocatorT;
+
+#elif ALLOC_TEST_TFMALLOC
+
+#include "tf_allocator.h"
+typedef tfmallocAllocatorForTest MyAllocatorT; // change the name of the class
+
+#else
+
+#include "new_delete_allocator.h"
+typedef NewDeleteAllocatorForTest MyAllocatorT;
+
+#endif
 
 #endif // SELECTOR_H

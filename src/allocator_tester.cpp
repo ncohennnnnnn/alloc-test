@@ -33,6 +33,7 @@
 
 #include "selector.h"
 #include "allocator_tester.h"
+#include "config.hpp"
 
 template<class Allocator>
 void* runRandomTest( void* params )
@@ -126,7 +127,6 @@ int main()
 	params.startupParams.mat = MEM_ACCESS_TYPE::full;
 
 	size_t threadMin = 1;
-	size_t threadMax = 23;
 
 	for ( params.startupParams.threadCount=threadMin; params.startupParams.threadCount<=threadMax; ++(params.startupParams.threadCount) )
 	{

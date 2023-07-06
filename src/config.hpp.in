@@ -1,0 +1,3 @@
+#define NB_THREADS @NB_THREADS@
+
+size_t threadMax = @NB_THREADS@;
