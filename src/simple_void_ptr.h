@@ -250,6 +250,11 @@ class allocator
         std::free(p.get());
     }
 
+    void deallocate(u_int8_t* const& p, size_type)
+    {
+        std::free(p);
+    }
+
     //construct: use default std::allocator_traits implementation
     //destroy:   use default std::allocator_traits implementation
     //max_size:  use default std::allocator_traits implementation

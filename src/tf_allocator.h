@@ -13,10 +13,14 @@
 #include "test_common.h"
 #include "simple_void_ptr.h"
 
+// I think we need to create an allocator of type TestBin which will allocate 
+// and deallocate TestBin AND an allocator of type uint8_t that will allocate 
+// memory inside the TestBin.
 
-class tfmallocAllocatorForTest : public allocator<uint8_t>
+template<typename T>
+class tfmallocAllocatorForTest : public allocator<T>
 {
-    using base = allocator<uint8_t>;
+    using base = allocator<T>;
 	ThreadTestRes* testRes;
 
 public:
