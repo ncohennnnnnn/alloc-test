@@ -5,46 +5,54 @@
 #  Tcmalloc_LIBRARIES   - List of libraries when using Tcmalloc.
 #  Tcmalloc_FOUND       - True if Tcmalloc found.
 
-# find_path(Tcmalloc_INCLUDE_DIR gperftools/tcmalloc.h NO_DEFAULT_PATH PATHS
-#   ${Tcmalloc_ROOT}/include
-#   /usr/include
-#   /opt/local/include
-#   /usr/local/include
-# )
-set(Tcmalloc_INCLUDE_DIR /home/nathan/.spack/Spack/opt/spack/linux-pop22-skylake/gcc-11.3.0/gperftools-2.10-zkagfvz6koblofnd4ke54ilinrt5dfqk/include/)
+find_package(PkgConfig QUIET)
+pkg_check_modules(PC_JEMALLOC QUIET jemalloc)
 
-if (USE_TCMALLOC)
-  set(Tcmalloc_NAMES tcmalloc)
-else ()
-  set(Tcmalloc_NAMES tcmalloc_minimal tcmalloc)
-endif ()
+find_path(
+  Tcmalloc_INCLUDE_DIR google/tcmalloc.h
+  HINTS ${Tcmalloc_ROOT}
+        ${TCMALLOC_ROOT}
+        ENV
+        TCMALLOC_ROOT
+        ${PC_TCMALLOC_MINIMAL_INCLUDEDIR}
+        ${PC_TCMALLOC_MINIMAL_INCLUDE_DIRS}
+        ${PC_TCMALLOC_INCLUDEDIR}
+        ${PC_TCMALLOC_INCLUDE_DIRS}
+        /usr/include
+        /opt/local/include
+        /usr/local/include
+  PATH_SUFFIXES include
+)
 
-# find_library(Tcmalloc_LIBRARY NO_DEFAULT_PATH
-#   NAMES ${Tcmalloc_NAMES}
-#   PATHS   ${Tcmalloc_ROOT}/lib /lib /usr/lib /usr/local/lib /opt/local/lib
-# )
-set(Tcmalloc_LIBRARY /home/nathan/.spack/Spack/opt/spack/linux-pop22-skylake/gcc-11.3.0/gperftools-2.10-zkagfvz6koblofnd4ke54ilinrt5dfqk/lib/libtcmalloc.so)
+find_library(
+  Tcmalloc_LIBRARY
+  NAMES tcmalloc_minimal tcmalloc libtcmalloc_minimal libtcmalloc
+  HINTS ${Tcmalloc_ROOT}
+        ${TCMALLOC_ROOT}
+        ENV
+        TCMALLOC_ROOT
+        ${PC_TCMALLOC_MINIMAL_LIBDIR}
+        ${PC_TCMALLOC_MINIMAL_LIBRARY_DIRS}
+        ${PC_TCMALLOC_LIBDIR}
+        ${PC_TCMALLOC_LIBRARY_DIRS}
+  PATH_SUFFIXES lib lib64
+)
 
-if (Tcmalloc_INCLUDE_DIR AND Tcmalloc_LIBRARY)
+if(Tcmalloc_INCLUDE_DIR AND Tcmalloc_LIBRARY)
   set(Tcmalloc_FOUND TRUE)
-  set( Tcmalloc_LIBRARIES ${Tcmalloc_LIBRARY} )
-else ()
+  set(TCMALLOC_FOUND TRUE)
+  set(Tcmalloc_LIBRARIES ${Tcmalloc_LIBRARY})
+else()
   set(Tcmalloc_FOUND FALSE)
-  set( Tcmalloc_LIBRARIES )
-endif ()
+  set(Tcmalloc_LIBRARIES)
+endif()
 
-if (Tcmalloc_FOUND)
-  message(STATUS "Found Tcmalloc: ${Tcmalloc_LIBRARY}")
-else ()
+if(NOT Tcmalloc_FOUND)
   message(STATUS "Not Found Tcmalloc: ${Tcmalloc_LIBRARY}")
-  if (Tcmalloc_FIND_REQUIRED)
+  if(Tcmalloc_FIND_REQUIRED)
     message(STATUS "Looked for Tcmalloc libraries named ${Tcmalloc_NAMES}.")
     message(FATAL_ERROR "Could NOT find Tcmalloc library")
-  endif ()
-endif ()
+  endif()
+endif()
 
-mark_as_advanced(
-  Tcmalloc_LIBRARY
-  Tcmalloc_INCLUDE_DIR
-  )
-
+mark_as_advanced(Tcmalloc_LIBRARY Tcmalloc_INCLUDE_DIR)

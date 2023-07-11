@@ -26,6 +26,7 @@ class tfmallocAllocatorForTest : public allocator<T>
 public:
 	tfmallocAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
 	static constexpr bool isFake() { return false; }
+	static constexpr bool isFancy() { return true; }
 
 	static constexpr const char* name() { return "tfmalloc allocator"; }
 

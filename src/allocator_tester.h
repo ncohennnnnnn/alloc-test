@@ -261,12 +261,11 @@ void checkSegment( uint8_t* ptr, size_t sz, size_t reincarnation )
 	}
 }
 
+#if !ALLOC_TEST_HWMALLOC && !ALLOC_TEST_TFMALLOC && !NEW_DELETE_WITH_FANCY_POINTERS
+
 template< class AllocatorUnderTest, MEM_ACCESS_TYPE mat>
 void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCount, size_t maxItems, size_t maxItemSizeExp, size_t threadID, size_t rnd_seed )
 {
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	AllocatorUnderTest<uint8_t> allocatorUnderTest_char;
-#endif
 	if( maxItemSizeExp >= 32 )
 	{
 		printf( "allocation sizes greater than 2^31 are not yet supported; revise implementation, if desired\n" );
@@ -276,15 +275,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 	static constexpr const char* memAccessTypeStr = mat == MEM_ACCESS_TYPE::none ? "none" : ( mat == MEM_ACCESS_TYPE::single ? "single" : ( mat == MEM_ACCESS_TYPE::full ? "full" : ( mat == MEM_ACCESS_TYPE::check ? "check" : "unknown" ) ) );
 	printf( "    running thread %zd with \'%s\' and maxItemSizeExp = %zd, maxItems = %zd, iterCount = %zd, allocated memory access mode: %s,  [rnd_seed = %lu] ...\n", threadID, allocatorUnderTest.name(), maxItemSizeExp, maxItems, iterCount, memAccessTypeStr, rnd_seed );
 	constexpr bool doMemAccess = mat != MEM_ACCESS_TYPE::none;
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	allocatorUnderTest_char.init();
-	allocatorUnderTest_char.getTestRes()->threadID = threadID; // just as received
-	allocatorUnderTest_char.getTestRes()->rdtscBegin = __rdtsc();
-#else
 	allocatorUnderTest.init();
 	allocatorUnderTest.getTestRes()->threadID = threadID; // just as received
 	allocatorUnderTest.getTestRes()->rdtscBegin = __rdtsc();
-#endif
 
 	size_t start = GetMillisecondCount();
 
@@ -300,45 +293,20 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 	assert( maxItems <= UINT32_MAX );
 	Pareto_80_20_6_Init( paretoData, (uint32_t)maxItems );
 
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-
-	using pointer =decltype(allocatorUnderTest_.allocate(1));
-	using traits = pointer_traits<pointer>;
-
-#endif
 
 	struct TestBin
 	{
 		uint8_t* ptr;
 		uint32_t sz;
 		uint32_t reincarnation;
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-		pointer fptr;
-#endif
 	};
 
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	AllocatorUnderTest<TestBin> AllocatorUndertest_bin;
-	using pointer_bin =decltype(allocatorUnderTest_bin.allocate(1));
-	using traits_bin = pointer_traits<pointer_bin>;
-	pointer_bin fbaseBuff = nullptr;
-#endif
 
 	TestBin* baseBuff = nullptr; 
 	if constexpr ( !allocatorUnderTest.isFake() ) {
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-		fbaseBuff = allocatorUnderTest_bin.allocate( maxItems );
-		baseBuff = reinterpret_cast<TestBin*>( traits_bin::to_address( fbaseBuff ));
-#else
 		baseBuff = reinterpret_cast<TestBin*>( allocatorUnderTest.allocate( maxItems * sizeof(TestBin) ) );
-#endif
 	} else
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-		fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems );
-		baseBuff = reinterpret_cast<TestBin*>( traits_bin::to_address( fbaseBuff ));
-#else
 		baseBuff = reinterpret_cast<TestBin*>( allocatorUnderTest.allocateSlots( maxItems * sizeof(TestBin) ) );
-#endif
 	assert( baseBuff );
 	allocatedSz +=  maxItems * sizeof(TestBin);
 	memset( baseBuff, 0, maxItems * sizeof( TestBin ) );
@@ -355,13 +323,7 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				size_t randNumSz = rng.rng64();
 				size_t sz = calcSizeWithStatsAdjustment( randNumSz, maxItemSizeExp );
 				baseBuff[i*32+j].sz = (uint32_t)sz;
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-				pointer tmp = allocatorUnderTest_char.allocate( sz );
-				baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( traits_char::to_address(tmp) );
-				baseBuff[i*32+j].fptr = tmp;
-#else
 				baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( allocatorUnderTest.allocate( sz ) );
-#endif
 				if constexpr ( doMemAccess )
 				{
 					if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -381,15 +343,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				allocatedSz += sz;
 			}
 	}
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	allocatorUnderTest_char.doWhateverAfterSetupPhase();
-	allocatorUnderTest_char.getTestRes()->rdtscSetup = __rdtsc();
-	allocatorUnderTest_char.getTestRes()->allocatedAfterSetupSz = allocatedSz;
-#else
 	allocatorUnderTest.doWhateverAfterSetupPhase();
 	allocatorUnderTest.getTestRes()->rdtscSetup = __rdtsc();
 	allocatorUnderTest.getTestRes()->allocatedAfterSetupSz = allocatedSz;
-#endif
 
 	rss = getRss();
 	if ( rssMax < rss ) rssMax = rss;
@@ -429,23 +385,14 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 #ifdef COLLECT_USER_MAX_ALLOCATED
 				allocatedSz -= baseBuff[idx].sz;
 #endif
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-				allocatorUnderTest_char.deallocate( baseBuff[idx].fptr );
-#else
 				allocatorUnderTest.deallocate( baseBuff[idx].ptr);
-#endif
 				baseBuff[idx].ptr = 0;
 			}
 			else
 			{
 				size_t sz = calcSizeWithStatsAdjustment( rng.rng64(), maxItemSizeExp );
 				baseBuff[idx].sz = (uint32_t)sz;
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-				auto tmp = allocatorUnderTest_char.allocate( sz );
-				baseBuff[idx].ptr = reinterpret_cast<uint8_t*>(traits_char::to_address(tmp) );
-#else
 				baseBuff[idx].ptr = reinterpret_cast<uint8_t*>( allocatorUnderTest.allocate( sz ) );
-#endif
 				if constexpr ( doMemAccess )
 				{
 					if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -472,15 +419,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 		rss = getRss();
 		if ( rssMax < rss ) rssMax = rss;
 	}
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	allocatorUnderTest_char.doWhateverAfterMainLoopPhase();
-	allocatorUnderTest_char.getTestRes()->rdtscMainLoop = __rdtsc();
-	allocatorUnderTest_char.getTestRes()->allocatedMax = allocatedSzMax;
-#else
 	allocatorUnderTest.doWhateverAfterMainLoopPhase();
 	allocatorUnderTest.getTestRes()->rdtscMainLoop = __rdtsc();
 	allocatorUnderTest.getTestRes()->allocatedMax = allocatedSzMax;
-#endif
 
 	// exit
 	for ( size_t idx=0; idx<maxItems; ++idx )
@@ -509,43 +450,19 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				}
 			}
 
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-			allocatorUnderTest_char.deallocate( baseBuff[idx].fptr );
-#else
 			allocatorUnderTest.deallocate( baseBuff[idx].ptr);
-#endif
 		}
 
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	if constexpr ( !allocatorUnderTest.isFake() )
-	{
-		allocatorUnderTest_bin.deallocate( fbaseBuff );
-		allocatorUnderTest_bin.deallocate( baseBuff );
-	} else 
-	{
-		allocatorUnderTest_bin.deallocateSlots( fbaseBuff );
-		allocatorUnderTest_bin.deallocateSlots( baseBuff );
-	}
-#else
 	if constexpr ( !allocatorUnderTest.isFake() )
 		allocatorUnderTest.deallocate( baseBuff);
 	else
 		allocatorUnderTest.deallocateSlots( baseBuff );
-#endif
 
-#if ALLOC_TEST_HWMALLOC || ALLOC_TEST_TFMALLOC || NEW_DELETE_WITH_FANCY_POINTERS
-	allocatorUnderTest_char.deinit();
-	allocatorUnderTest_char.getTestRes()->rdtscExit = __rdtsc();
-	allocatorUnderTest_char.getTestRes()->innerDur = GetMillisecondCount() - start;
-	allocatorUnderTest_char.doWhateverAfterCleanupPhase();
-
-#else
 	allocatorUnderTest.deinit();
 	allocatorUnderTest.getTestRes()->rdtscExit = __rdtsc();
 	allocatorUnderTest.getTestRes()->innerDur = GetMillisecondCount() - start;
 	allocatorUnderTest.doWhateverAfterCleanupPhase();
 
-#endif
 
 	rss = getRss();
 	if ( rssMax < rss ) rssMax = rss;
@@ -556,34 +473,26 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 
 
 
+#else
 
 
 
 
+template<typename A, typename T, class Enable = void>
+struct select_alloc { using type = A; };
+
+template<typename A, typename T>
+// struct select_alloc<A, T, std::enable_if_t<(!std::declval<A>().isFake() and std::declval<A>().isFancy())>> { 
+struct select_alloc<A, T, std::enable_if_t<(!A().isFake() and A().isFancy())>> { 
+	using type = typename std::allocator_traits<A>::template rebind_alloc<T>;
+}; 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-template< class AllocatorUnderTest, MEM_ACCESS_TYPE mat>
+template<class AllocatorUnderTest, MEM_ACCESS_TYPE mat>
 void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCount, size_t maxItems, size_t maxItemSizeExp, size_t threadID, size_t rnd_seed )
 {
-	if constexpr ( !allocatorUnderTest.isFake() )
-		AllocatorUnderTest<void> allocatorUnderTest_char;
+	typename select_alloc<AllocatorUnderTest, uint8_t>::type allocatorUnderTest_char(allocatorUnderTest.getTestRes());
+
 	if( maxItemSizeExp >= 32 )
 	{
 		printf( "allocation sizes greater than 2^31 are not yet supported; revise implementation, if desired\n" );
@@ -594,16 +503,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 	printf( "    running thread %zd with \'%s\' and maxItemSizeExp = %zd, maxItems = %zd, iterCount = %zd, allocated memory access mode: %s,  [rnd_seed = %lu] ...\n", threadID, allocatorUnderTest.name(), maxItemSizeExp, maxItems, iterCount, memAccessTypeStr, rnd_seed );
 	constexpr bool doMemAccess = mat != MEM_ACCESS_TYPE::none;
 
-	if constexpr ( !allocatorUnderTest.isFake() )
-	{
-		allocatorUnderTest_char.init();
-		allocatorUnderTest_char.getTestRes()->threadID = threadID; // just as received
-		allocatorUnderTest_char.getTestRes()->rdtscBegin = __rdtsc();
-	} else {
-		allocatorUnderTest.init();
-		allocatorUnderTest.getTestRes()->threadID = threadID; // just as received
-		allocatorUnderTest.getTestRes()->rdtscBegin = __rdtsc();
-	}
+	allocatorUnderTest_char.init();
+	allocatorUnderTest_char.getTestRes()->threadID = threadID; // just as received
+	allocatorUnderTest_char.getTestRes()->rdtscBegin = __rdtsc();
 
 	size_t start = GetMillisecondCount();
 
@@ -619,34 +521,28 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 	assert( maxItems <= UINT32_MAX );
 	Pareto_80_20_6_Init( paretoData, (uint32_t)maxItems );
 
-	if constexpr ( !allocatorUnderTest.isFake() ) { using pointer =decltype(allocatorUnderTest_char.allocate(1)); }
-	else { using pointer =decltype(allocatorUnderTest.allocate(1)); }
-	using traits = pointer_traits<pointer>;
+	using pointer_char =decltype(allocatorUnderTest_char.allocate(1));
+	using traits_char = pointer_traits<pointer_char>;
 
 	struct TestBin
 	{
 		uint8_t* ptr;
 		uint32_t sz;
 		uint32_t reincarnation;
-		pointer fptr;
+		pointer_char fptr;
 	};
 
-	if constexpr ( !allocatorUnderTest.isFake() ) 
-	{ 
-		AllocatorUnderTest<TestBin> allocatorUndertest_bin; 
-		using pointer_bin =decltype(allocatorUnderTest_bin.allocate(1));
-	} else {
-		using pointer_bin =decltype(allocatorUnderTest.allocate(1));
-	}
-
+	typename select_alloc<AllocatorUnderTest, TestBin>::type allocatorUnderTest_bin(allocatorUnderTest.getTestRes());
+	using pointer_bin =decltype(allocatorUnderTest_bin.allocate(1));
 	using traits_bin = pointer_traits<pointer_bin>;
-	pointer_bin fbaseBuff = nullptr;
 
+	pointer_bin fbaseBuff = nullptr;
 	TestBin* baseBuff = nullptr; 
+
 	if constexpr ( !allocatorUnderTest.isFake() ) {
 		fbaseBuff = allocatorUnderTest_bin.allocate( maxItems );
 	} else {
-		fbaseBuff = allocatorUnderTest.allocateSlots( maxItems );
+		fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems );
 	}
 	baseBuff = reinterpret_cast<TestBin*>( traits_bin::to_address( fbaseBuff ));
 	assert( baseBuff );
@@ -665,7 +561,7 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				size_t randNumSz = rng.rng64();
 				size_t sz = calcSizeWithStatsAdjustment( randNumSz, maxItemSizeExp );
 				baseBuff[i*32+j].sz = (uint32_t)sz;
-				pointer tmp = allocatorUnderTest_char.allocate( sz );
+				pointer_char tmp = allocatorUnderTest_char.allocate( sz );
 				baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( traits_char::to_address(tmp) );
 				baseBuff[i*32+j].fptr = tmp;
 				if constexpr ( doMemAccess )
@@ -687,16 +583,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				allocatedSz += sz;
 			}
 	}
-	if constexpr ( !allocatorUnderTest.isFake() ) 
-	{
-		allocatorUnderTest_char.doWhateverAfterSetupPhase();
-		allocatorUnderTest_char.getTestRes()->rdtscSetup = __rdtsc();
-		allocatorUnderTest_char.getTestRes()->allocatedAfterSetupSz = allocatedSz;
-	} else {
-		allocatorUnderTest.doWhateverAfterSetupPhase();
-		allocatorUnderTest.getTestRes()->rdtscSetup = __rdtsc();
-		allocatorUnderTest.getTestRes()->allocatedAfterSetupSz = allocatedSz;	
-	}
+	allocatorUnderTest_char.doWhateverAfterSetupPhase();
+	allocatorUnderTest_char.getTestRes()->rdtscSetup = __rdtsc();
+	allocatorUnderTest_char.getTestRes()->allocatedAfterSetupSz = allocatedSz;
 
 	rss = getRss();
 	if ( rssMax < rss ) rssMax = rss;
@@ -771,17 +660,9 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 		rss = getRss();
 		if ( rssMax < rss ) rssMax = rss;
 	}
-	if constexpr ( !allocatorUnderTest.isFake() ) 
-	{			
-		allocatorUnderTest_char.doWhateverAfterMainLoopPhase();
-		allocatorUnderTest_char.getTestRes()->rdtscMainLoop = __rdtsc();
-		allocatorUnderTest_char.getTestRes()->allocatedMax = allocatedSzMax;
-	} else {
-		allocatorUnderTest.doWhateverAfterMainLoopPhase();
-		allocatorUnderTest.getTestRes()->rdtscMainLoop = __rdtsc();
-		allocatorUnderTest.getTestRes()->allocatedMax = allocatedSzMax;
-
-	}
+	allocatorUnderTest_char.doWhateverAfterMainLoopPhase();
+	allocatorUnderTest_char.getTestRes()->rdtscMainLoop = __rdtsc();
+	allocatorUnderTest_char.getTestRes()->allocatedMax = allocatedSzMax;
 
 	// exit
 	for ( size_t idx=0; idx<maxItems; ++idx )
@@ -810,33 +691,29 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 				}
 			}
 
-			if constexpr ( !allocatorUnderTest.isFake() ) { allocatorUnderTest_char.deallocate( baseBuff[idx].fptr ); }
-			else { allocatorUnderTest.deallocate( baseBuff[idx].fptr ); }
+			allocatorUnderTest_char.deallocate( baseBuff[idx].fptr );
 		}
 
 	if constexpr ( !allocatorUnderTest.isFake() )
 	{
 		allocatorUnderTest_bin.deallocate( fbaseBuff );
 		allocatorUnderTest_bin.deallocate( baseBuff );
-		allocatorUnderTest_char.deinit();
-		allocatorUnderTest_char.getTestRes()->rdtscExit = __rdtsc();
-		allocatorUnderTest_char.getTestRes()->innerDur = GetMillisecondCount() - start;
-		allocatorUnderTest_char.doWhateverAfterCleanupPhase();
-	} else 
-	{
-		allocatorUnderTest.deallocateSlots( fbaseBuff );
-		allocatorUnderTest.deallocateSlots( baseBuff );
-		allocatorUnderTest.deinit();
-		allocatorUnderTest.getTestRes()->rdtscExit = __rdtsc();
-		allocatorUnderTest.getTestRes()->innerDur = GetMillisecondCount() - start;
-		allocatorUnderTest.doWhateverAfterCleanupPhase();
+	} else {
+		allocatorUnderTest_bin.deallocateSlots( fbaseBuff );
+		allocatorUnderTest_bin.deallocateSlots( baseBuff );
 	}
+	allocatorUnderTest_char.deinit();
+	allocatorUnderTest_char.getTestRes()->rdtscExit = __rdtsc();
+	allocatorUnderTest_char.getTestRes()->innerDur = GetMillisecondCount() - start;
+	allocatorUnderTest_char.doWhateverAfterCleanupPhase();
 
 	rss = getRss();
 	if ( rssMax < rss ) rssMax = rss;
-	allocatorUnderTest.getTestRes()->rssMax = rssMax;
+	allocatorUnderTest_char.getTestRes()->rssMax = rssMax;
 		
 	printf( "about to exit thread %zd (%zd operations performed) [ctr = %zd]...\n", threadID, iterCount, dummyCtr );
 };
+
+#endif
 
 #endif // ALLOCATOR_TESTER_H

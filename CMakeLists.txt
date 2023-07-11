@@ -1,397 +1,287 @@
 cmake_minimum_required(VERSION 3.14)
 project(alloc-test)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Policies
-#------------------------------------------------------------------------------
-cmake_policy(SET CMP0028 NEW) # Double colon in target name means ALIAS or IMPORTED target
-cmake_policy(SET CMP0060 NEW) # Link libraries by full path even in implicit directories
+# ------------------------------------------------------------------------------
+cmake_policy(SET CMP0028 NEW) # Double colon in target name means ALIAS or
+                              # IMPORTED target
+cmake_policy(SET CMP0060 NEW) # Link libraries by full path even in implicit
+                              # directories
 cmake_policy(SET CMP0074 NEW) # find_package uses XXX_ROOT vars
 
-#------------------------------------------------------------------------------
-# Set choice variables
-#------------------------------------------------------------------------------
-set(NB_THREADS 16)
-configure_file(${PROJECT_SOURCE_DIR}/src/config.hpp.in ${PROJECT_SOURCE_DIR}/src/config.hpp)
+# ------------------------------------------------------------------------------
+# Enable testing
+# ------------------------------------------------------------------------------
+include(CTest)
+enable_testing()
 
-#------------------------------------------------------------------------------
-# Set allocators to test, set the use of fancy pointers for new/delete allocators
-#------------------------------------------------------------------------------
-set(TEST_ALL FALSE)
-set(TEST_HWMALLOC FALSE)
-set(TEST_TFMALLOC FALSE) # TF := Test of Fancy
-set(TEST_JEMALLOC TRUE)
-set(TEST_MIMALLOC FALSE)
-set(TEST_TCMALLOC FALSE)
-
-set(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
-
-if (TEST_ALL)
-    set(TEST_HWMALLOC TRUE)
-    set(TEST_TFMALLOC TRUE)
-    set(TEST_JEMALLOC TRUE)
-    set(TEST_MIMALLOC TRUE)
-    set(TEST_TCMALLOC TRUE)
-endif()
-
-
-#------------------------------------------------------------------------------
-# Set print
-#------------------------------------------------------------------------------
-set(PRINT_IN_TXT_ALL FALSE)
-set(PRINT_IN_TXT_HWMALLOC FALSE)
-set(PRINT_IN_TXT_TFMALLOC FALSE)
-set(PRINT_IN_TXT_JEMALLOC TRUE)
-set(PRINT_IN_TXT_MIMALLOC TRUE)
-set(PRINT_IN_TXT_TCMALLOC TRUE)
-
-if (PRINT_IN_TXT_ALL)
-    set(PRINT_IN_TXT_HWMALLOC TRUE)
-    set(PRINT_IN_TXT_TFMALLOC TRUE)
-    set(PRINT_IN_TXT_JEMALLOC TRUE)
-    set(PRINT_IN_TXT_MIMALLOC TRUE)
-    set(PRINT_IN_TXT_TCMALLOC TRUE)
-endif()
-
-if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_HWMALLOC OR PRINT_IN_TXT_TFMALLOC OR PRINT_IN_TXT_JEMALLOC OR PRINT_IN_TXT_MIMALLOC OR PRINT_IN_TXT_TCMALLOC)
-  AND 
-  NOT EXISTS ${PROJECT_SOURCE_DIR}/plot/output)
-
-    file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/plot/output)
-
-endif()
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Set C++ standard to C++17
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
 
-#------------------------------------------------------------------------------
-# Setup Output directories
-#------------------------------------------------------------------------------
-SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY
-    ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Executables."
-)
-SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY
-    ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all Libraries"
-)
-SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY
-    ${PROJECT_BINARY_DIR}/bin CACHE PATH "Single Directory for all static libraries."
-)
+# ------------------------------------------------------------------------------
+# Default to Release build type
+# ------------------------------------------------------------------------------
+set(CMAKE_BUILD_TYPE Release)
 
-#------------------------------------------------------------------------------
-#------------------------------------------------------------------------------
-# For allocators passed as a new class
-#------------------------------------------------------------------------------
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-# hwmalloc
-#------------------------------------------------------------------------------
-if(TEST_ALL OR TEST_HWMALLOC)
-
-    set(ALLOC_TEST_HWMALLOC TRUE)
-
-    if(NOT _hwmalloc_already_fetched)
-
-        set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
-        set(_hwmalloc_tag        "refactoring2")
-
-        message(STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}")
-        
-        include(FetchContent)
-        FetchContent_Declare(
-            hwmalloc
-            GIT_REPOSITORY ${_hwmalloc_repository}
-            GIT_TAG        ${_hwmalloc_tag}
-        )
-        FetchContent_Populate(hwmalloc)
-
-        #------------------------------------------------------------------------------
-        # Compile and build hwmalloc without NUMA, Boost, logging or device
-        #------------------------------------------------------------------------------
-
-        set(HWMALLOC_ENABLE_DEVICE FALSE)
-        set(HWMALLOC_ENABLE_LOGGING FALSE)
-        set(HWMALLOC_DEVICE_RUNTIME 0)
-
-        set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
-
-        configure_file(${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp)
-
-    endif()
-
-    #------------------------------------------------------------------------------
-    # Build the alloc-test executable and link the hwmalloc library to it
-    #------------------------------------------------------------------------------
-    set(_hwmalloc_directory ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src)
-
-    add_subdirectory(${_hwmalloc_directory})
-
-    add_executable(allocator_tester_hwmalloc
-    src/test_common.cpp
-    src/allocator_tester.cpp
-    )
-
-    find_package(Boost REQUIRED)
-
-    target_compile_definitions(allocator_tester_hwmalloc PUBLIC ALLOC_TEST_HWMALLOC)
-
-    target_link_libraries(allocator_tester_hwmalloc Boost::boost)
-    target_link_libraries(allocator_tester_hwmalloc hwmalloc)
-
-    target_include_directories(allocator_tester_hwmalloc
-    PUBLIC
-        src
-        ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/include
-    )
-
-    if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_HWMALLOC) AND (TEST_ALL OR TEST_HWMALLOC))
-
-        if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_hwmalloc.txt)
-            message("Removing previous hwmalloc result file...")
-            file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_hwmalloc.txt)
-        endif()
-        
-        set(output_hwmalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_hwmalloc.txt)
-
-        add_custom_command(
-            TARGET allocator_tester_hwmalloc
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:allocator_tester_hwmalloc> > "${output_hwmalloc_path}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Redirecting output to ${output_hwmalloc_path}"
-        )
-
-    endif()
-
-    set(ALLOC_TEST_HWMALLOC FALSE)
-    
-endif() # test of hwmalloc
-
-#------------------------------------------------------------------------------
-# tfmalloc
-#------------------------------------------------------------------------------
-if(TEST_ALL OR TEST_TFMALLOC)
-
-    set(ALLOC_TEST_TFMALLOC TRUE)
-
-    add_executable(allocator_tester_tfmalloc
-    src/test_common.cpp
-    src/allocator_tester.cpp
-    )
-    target_include_directories(allocator_tester_tfmalloc PUBLIC  src)
-    target_compile_definitions(allocator_tester_tfmalloc PUBLIC ALLOC_TEST_TFMALLOC)
-
-    if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_TFMALLOC) AND (TEST_ALL OR TEST_TFMALLOC))
-
-        if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_tfmalloc.txt)
-            message("Removing previous tfmalloc result file...")
-            file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_tfmalloc.txt)
-        endif()
-        
-        set(output_tfmalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_tfmalloc.txt)
-
-        add_custom_command(
-            TARGET allocator_tester_tfmalloc
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:allocator_tester_tfmalloc> > "${output_tfmalloc_path}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Redirecting output to ${output_tfmalloc_path}"
-        )
-
-    endif()
-
-    set(ALLOC_TEST_TFMALLOC FALSE)
-
-endif() # test of tfmalloc
-
-#------------------------------------------------------------------------------
-#------------------------------------------------------------------------------
-# For new/delete allocators
-#------------------------------------------------------------------------------
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # cmake module path for find_package
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Setup Output directories (all binaries in bin/ change libs to lib/ if you
+# want)
+# ------------------------------------------------------------------------------
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
+    ${PROJECT_BINARY_DIR}/bin
+    CACHE PATH "Single Directory for all Executables."
+)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
+    ${PROJECT_BINARY_DIR}/bin
+    CACHE PATH "Single Directory for all Libraries"
+)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
+    ${PROJECT_BINARY_DIR}/bin
+    CACHE PATH "Single Directory for all static libraries."
+)
+
+# ------------------------------------------------------------------------------
+# Set choice variables
+# ------------------------------------------------------------------------------
+set(NB_THREADS
+    16
+    CACHE STRING "Number of threads to test with"
+)
+configure_file(
+  ${PROJECT_SOURCE_DIR}/src/config.hpp.in ${PROJECT_SOURCE_DIR}/src/config.hpp
+)
+
+# ------------------------------------------------------------------------------
+# Set allocators to test, set the use of fancy pointers for new/delete
+# allocators
+# ------------------------------------------------------------------------------
+option(ALLOC_TEST_ALL FALSE)
+option(ALLOC_TEST_HWMALLOC FALSE)
+option(ALLOC_TEST_TFMALLOC FALSE) # TF := Test of Fancy
+option(ALLOC_TEST_JEMALLOC FALSE)
+option(ALLOC_TEST_MIMALLOC FALSE)
+option(ALLOC_TEST_TCMALLOC FALSE)
+
+if (ALLOC_TEST_ALL)
+    option(ALLOC_TEST_HWMALLOC TRUE)
+    option(ALLOC_TEST_TFMALLOC TRUE) # TF := Test of Fancy
+    option(ALLOC_TEST_JEMALLOC TRUE)
+    option(ALLOC_TEST_MIMALLOC TRUE)
+    option(ALLOC_TEST_TCMALLOC TRUE)
+endif()
+
+option(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
+
+# ------------------------------------------------------------------------------
+# setup plot directory/options
+# ------------------------------------------------------------------------------
+set(PRINT_OUTPUT_DIR
+    ${PROJECT_BINARY_DIR}/plot
+    CACHE PATH "Directory for plot scripts"
+)
+
+# if plot/output directory doesn't exist, create it
+if(NOT EXISTS ${PRINT_OUTPUT_DIR})
+  file(MAKE_DIRECTORY ${PRINT_OUTPUT_DIR})
+endif()
+
+# create a symlink to plot.ipynb in the build directory
+if(NOT EXISTS ${PRINT_OUTPUT_DIR}/plot.ipynb)
+  execute_process(
+    COMMAND
+      ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/plot/plot.ipynb
+      ${PRINT_OUTPUT_DIR}/plot.ipynb
+  )
+endif()
+
+# ------------------------------------------------------------------------------
+# function to create a test from source files and link the requested allocator
+# ------------------------------------------------------------------------------
+function(make_allocator_app alloc_name)
+  # boilerplate to parse arguments
+  set(options NO_FIND_PACKAGE)
+  set(one_value_args TEXTHINT)
+  set(multi_value_args LINKLIBS)
+  cmake_parse_arguments(
+    ALLOC_OPTION "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN}
+  )
+
+  if(NOT ALLOC_OPTION_NO_FIND_PACKAGE)
+    find_package(${alloc_name} QUIET)
+  else()
+    set(${alloc_name}_FOUND TRUE)
+  endif()
+  string(TOUPPER ${alloc_name} UPPER_NAME)
+  string(TOLOWER ${alloc_name} LOWER_NAME)
+
+  if(${UPPER_NAME}_FOUND OR ${alloc_name}_FOUND)
+    message(STATUS "${alloc_name} found : ${ALLOC_OPTION_TEXTHINT}")
+
+    # Add the executable target
+    add_executable(
+      allocator_tester_${LOWER_NAME} src/test_common.cpp
+                                     src/allocator_tester.cpp
+    )
+    target_include_directories(allocator_tester_${LOWER_NAME} PUBLIC src)
+    target_link_libraries(
+      allocator_tester_${LOWER_NAME} PUBLIC ${${UPPER_NAME}_LIBRARY}
+                                            ${ALLOC_OPTION_LINKLIBS}
+    )
+    target_compile_definitions(
+      allocator_tester_${LOWER_NAME} PUBLIC ALLOC_ALLOC_TEST_${UPPER_NAME}
+    )
+
+    if(NEW_DELETE_WITH_FANCY_POINTERS)
+      target_compile_definitions(
+        allocator_tester_${LOWER_NAME} PUBLIC NEW_DELETE_WITH_FANCY_POINTERS
+      )
+      set(output_path ${PRINT_OUTPUT_DIR}/test_fancy_${LOWER_NAME}.txt)
+      if(EXISTS ${output_path})
+        message("Removing previous ${alloc_name} result file...")
+        file(REMOVE ${output_path})
+      endif()
+    else()
+      set(output_path ${PRINT_OUTPUT_DIR}/test_${LOWER_NAME}.txt)
+      if(EXISTS ${output_path})
+        message("Removing previous ${alloc_name} result file...")
+        file(REMOVE ${output_path})
+      endif()
+    endif()
+
+    # create a `ctest` test that executes the allocator tester note that ctest
+    # doesn't use a shell, so we can't redirect the output to a file using the
+    # usual '>' operator
+    add_test(NAME allocator_tester_${LOWER_NAME}
+             COMMAND "$<TARGET_FILE:allocator_tester_${LOWER_NAME}>"
+    )
+
+    # create a custom target that executes the allocator tester as above, and
+    # redirects the output to a file. Building this target will first build the
+    # binary and then execute the test
+    add_custom_target(
+      print_${LOWER_NAME}
+      # the target must be compiled before this test is run
+      DEPENDS $<TARGET_FILE:allocator_tester_${LOWER_NAME}>
+      COMMAND $<TARGET_FILE:allocator_tester_${LOWER_NAME}> > "${output_path}"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMENT
+        "Writing output of allocator_tester_${LOWER_NAME} to ${output_path}"
+    )
+
+    # append the same command to the "print_all" pseudo target
+    add_custom_command(
+      OUTPUT print_all_dependencies
+      APPEND COMMAND_EXPAND_LISTS
+      COMMENT
+        "Sending output of allocator_tester_${LOWER_NAME} to ${output_path}"
+      COMMAND
+        echo
+        "Writing output of allocator_tester_${LOWER_NAME} to ${output_path}"
+      COMMAND $<TARGET_FILE:allocator_tester_${LOWER_NAME}> > "${output_path}"
+    )
+
+  else()
+    message(STATUS "${alloc_name} was not found, skipping build")
+  endif()
+endfunction()
+
+# ------------------------------------------------------------------------------
+# create a pseudo target that will run ALL our print_xxx tests sequentially
+# ------------------------------------------------------------------------------
+add_custom_target(print_all DEPENDS print_all_dependencies)
+add_custom_command(
+  OUTPUT print_all_dependencies COMMAND echo "Running all print_xxx tests"
+)
+# print_all_dependencies is not actually generated so set it to symbolic
+set_source_files_properties(print_all_dependencies PROPERTIES SYMBOLIC "true")
+
+# ------------------------------------------------------------------------------
+# hwmalloc
+# ------------------------------------------------------------------------------
+if(ALLOC_TEST_ALL OR ALLOC_TEST_HWMALLOC)
+  if(NOT _hwmalloc_already_fetched)
+    set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
+    set(_hwmalloc_tag "refactoring2")
+    message(
+      STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}"
+    )
+
+    include(FetchContent)
+    fetchcontent_declare(
+      hwmalloc
+      GIT_REPOSITORY ${_hwmalloc_repository}
+      GIT_TAG ${_hwmalloc_tag}
+    )
+    fetchcontent_populate(hwmalloc)
+
+    # -------------------------------------------------------
+    # Compile hwmalloc without NUMA, Boost, logging or device
+    # -------------------------------------------------------
+    set(HWMALLOC_ENABLE_DEVICE FALSE)
+    set(HWMALLOC_ENABLE_LOGGING FALSE)
+    set(HWMALLOC_DEVICE_RUNTIME 0)
+
+    set(_hwmalloc_already_fetched
+        ON
+        CACHE INTERNAL ""
+    )
+
+    configure_file(
+      ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in
+      ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp
+    )
+  endif()
+
+  # create hwmalloc library
+  add_subdirectory(${hwmalloc_SOURCE_DIR} ${hwmalloc_BINARY_DIR})
+
+  # create the executable and link hwmalloc library to it
+  make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc)
+
+endif()
+
+# ------------------------------------------------------------------------------
+# tfmalloc
+# ------------------------------------------------------------------------------
+if(ALLOC_TEST_ALL OR ALLOC_TEST_TFMALLOC)
+  make_allocator_app(tfmalloc NO_FIND_PACKAGE)
+endif()
+
+# ------------------------------------------------------------------------------
 # jemalloc
-#------------------------------------------------------------------------------
-if(TEST_ALL OR TEST_JEMALLOC)
+# ------------------------------------------------------------------------------
+if(ALLOC_TEST_ALL OR ALLOC_TEST_JEMALLOC)
+  make_allocator_app(
+    Jemalloc TEXTHINT "use MALLOC_CONF=stats_print:true bin/binary"
+  )
+endif()
 
-    find_package(Jemalloc QUIET)
-
-    if(JEMALLOC_FOUND)
-        message(STATUS "Jemalloc found")
-        message(STATUS "use MALLOC_CONF=stats_print:true bin/binary")
-
-        # Add the executable target
-        add_executable(allocator_tester_jemalloc
-        src/test_common.cpp
-        src/allocator_tester.cpp
-        )
-        target_include_directories(allocator_tester_jemalloc PUBLIC  src)
-
-        if (NEW_DELETE_WITH_FANCY_POINTERS)
-            target_compile_definitions(allocator_tester_jemalloc PUBLIC NEW_DELETE_WITH_FANCY_POINTERS)
-        endif()
-
-        target_link_libraries(allocator_tester_jemalloc PUBLIC ${JEMALLOC_LIBRARY})
-    else()
-        message(STATUS "Jemalloc was not found")
-    return()
-    endif()
-
-    if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_JEMALLOC) AND (TEST_ALL OR TEST_JEMALLOC))
-
-        if(NEW_DELETE_WITH_FANCY_POINTERS)
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_jemalloc.txt)
-                message("Removing previous jemalloc result file...")
-                file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_jemalloc.txt)
-            endif()
-            set(output_jemalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_jemalloc.txt)
-
-        else()
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_jemalloc.txt)
-            message("Removing previous jemalloc result file...")
-            file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_jemalloc.txt)
-            endif()
-            set(output_jemalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_jemalloc.txt)
-
-        endif()
-
-        add_custom_command(
-            TARGET allocator_tester_jemalloc
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:allocator_tester_jemalloc> > "${output_jemalloc_path}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Redirecting output to ${output_jemalloc_path}"
-        )
-
-    endif()
-
-endif() # test of jemalloc
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # mimalloc
-#------------------------------------------------------------------------------
-if(TEST_ALL OR TEST_MIMALLOC)
+# ------------------------------------------------------------------------------
+if(ALLOC_TEST_ALL OR ALLOC_TEST_MIMALLOC)
+  make_allocator_app(
+    mimalloc TEXTHINT "use env MIMALLOC_SHOW_STATS=1 bin/binary"
+  )
+endif()
 
-    find_package(mimalloc QUIET)
-
-    if(mimalloc_FOUND)
-        message(STATUS "mimalloc found")
-        message(STATUS "use env MIMALLOC_SHOW_STATS=1 bin/binary")
-
-        # Add the executable target
-        add_executable(allocator_tester_mimalloc
-        src/test_common.cpp
-        src/allocator_tester.cpp
-        )
-        target_include_directories(allocator_tester_mimalloc PUBLIC src)
-
-        if (NEW_DELETE_WITH_FANCY_POINTERS)
-            target_compile_definitions(allocator_tester_jemalloc PUBLIC NEW_DELETE_WITH_FANCY_POINTERS)
-        endif()
-        
-        target_link_libraries(allocator_tester_mimalloc PUBLIC mimalloc)
-    else()
-        message(STATUS "mimalloc was not found")
-    return()
-    endif()
-
-    if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_MIMALLOC) AND (TEST_ALL OR TEST_MIMALLOC))
-
-        if(NEW_DELETE_WITH_FANCY_POINTERS)
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_mimalloc.txt)
-                message("Removing previous mimalloc result file...")
-                file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_mimalloc.txt)
-            endif()
-            set(output_mimalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_mimalloc.txt)
-
-        else()
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_mimalloc.txt)
-                message("Removing previous mimalloc result file...")
-                file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_mimalloc.txt)
-            endif()
-            set(output_mimalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_mimalloc.txt)
-            
-        endif()
-
-        add_custom_command(
-            TARGET allocator_tester_mimalloc
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:allocator_tester_mimalloc> > "${output_mimalloc_path}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Redirecting output to ${output_mimalloc_path}"
-        )
-
-    endif()
-
-endif() # test of mimalloc
-
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # tcmalloc
-#------------------------------------------------------------------------------
-if(TEST_ALL OR TEST_TCMALLOC)
+# ------------------------------------------------------------------------------
+if(ALLOC_TEST_ALL OR ALLOC_TEST_TCMALLOC)
+  make_allocator_app(Tcmalloc)
+endif()
 
-    find_package(Tcmalloc QUIET)
-
-    if(Tcmalloc_FOUND)
-        message(STATUS "tcmalloc found")
-
-        # Add the executable target
-        add_executable(allocator_tester_tcmalloc
-        src/test_common.cpp
-        src/allocator_tester.cpp
-        )
-        target_include_directories(allocator_tester_tcmalloc PUBLIC src)
-
-        if (NEW_DELETE_WITH_FANCY_POINTERS)
-            target_compile_definitions(allocator_tester_jemalloc PUBLIC NEW_DELETE_WITH_FANCY_POINTERS)
-        endif()
-        
-        target_link_libraries(allocator_tester_tcmalloc PUBLIC ${Tcmalloc_LIBRARY})
-    else()
-        message(STATUS "tcmalloc was not found")
-    return()
-    endif()
-
-    if((PRINT_IN_TXT_ALL OR PRINT_IN_TXT_TCMALLOC) AND (TEST_ALL OR TEST_TCMALLOC))
-
-        if(NEW_DELETE_WITH_FANCY_POINTERS)
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_tcmalloc.txt)
-                message("Removing previous tcmalloc result file...")
-                file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_tcmalloc.txt)
-            endif()
-            set(output_tcmalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_fancy_tcmalloc.txt)
-
-        else()
-
-            if(EXISTS ${PROJECT_SOURCE_DIR}/plot/output/test_tcmalloc.txt)
-                message("Removing previous tcmalloc result file...")
-                file(REMOVE ${PROJECT_SOURCE_DIR}/plot/output/test_tcmalloc.txt)
-            endif()
-            set(output_tcmalloc_path ${PROJECT_SOURCE_DIR}/plot/output/test_tcmalloc.txt)
-            
-        endif()
-
-        add_custom_command(
-            TARGET allocator_tester_tcmalloc
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:allocator_tester_tcmalloc> > "${output_tcmalloc_path}"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Redirecting output to ${output_tcmalloc_path}"
-        )
-
-    endif()
-
-endif() # test of tcmalloc
+# create a psuedo target that executes all tests
+add_custom_target(
+  generate_plot_data DEPENDS print_hwmalloc print_tfmalloc print_jemalloc
+                             print_mimalloc print_tcmalloc
+)

@@ -45,6 +45,7 @@ class NewDeleteAllocatorForTest
 public:
 	NewDeleteAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
 	static constexpr bool isFake() { return false; }
+	static constexpr bool isFancy() { return false; }
 
 	static constexpr const char* name() { return "new-delete allocator"; }
 

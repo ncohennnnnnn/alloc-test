@@ -49,6 +49,7 @@ class VoidAllocatorForTest
 public:
 	VoidAllocatorForTest( ThreadTestRes* testRes_ ) : alloc( &discardedTestRes ) { testRes = testRes_; }
 	static constexpr bool isFake() { return true; } // thus indicating that certain checks over allocated memory should be ommited
+	static constexpr bool isFancy() { return false; }
 
 	static constexpr const char* name() { return "void allocator"; }
 
