@@ -59,9 +59,11 @@ register_memory(context&, void* ptr, std::size_t)
     return context::region{ptr};
 }
 
-class hwmallocAllocatorForTest : public hwmalloc::allocator<uint8_t,hwmalloc::heap<context>>
+template<typename T>
+class hwmallocAllocatorForTest : public hwmalloc::allocator<T,hwmalloc::heap<context>>
 {
-    using base = hwmalloc::allocator<uint8_t,hwmalloc::heap<context>>;
+    using base = hwmalloc::allocator<T,hwmalloc::heap<context>>;
+    using pointer = hwmalloc::hw_ptr<T, hwmalloc::heap<context>::block_type>;
 	ThreadTestRes* testRes;
 
 public:

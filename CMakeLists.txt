@@ -136,7 +136,7 @@ function(make_allocator_app alloc_name)
                                             ${ALLOC_OPTION_LINKLIBS}
     )
     target_compile_definitions(
-      allocator_tester_${LOWER_NAME} PUBLIC ALLOC_ALLOC_TEST_${UPPER_NAME}
+      allocator_tester_${LOWER_NAME} PUBLIC ALLOC_TEST_${UPPER_NAME}
     )
 
     if(NEW_DELETE_WITH_FANCY_POINTERS)
@@ -243,8 +243,17 @@ if(ALLOC_TEST_ALL OR ALLOC_TEST_HWMALLOC)
   # create hwmalloc library
   add_subdirectory(${hwmalloc_SOURCE_DIR} ${hwmalloc_BINARY_DIR})
 
+  # find Boost library
+  find_package(Boost REQUIRED)
+
   # create the executable and link hwmalloc library to it
-  make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc)
+  if(NEW_DELETE_WITH_FANCY_POINTERS)
+    set(NEW_DELETE_WITH_FANCY_POINTERS FALSE)
+    make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc)
+    set(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
+  else()
+    make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc Boost::boost)
+  endif()
 
 endif()
 
@@ -252,7 +261,13 @@ endif()
 # tfmalloc
 # ------------------------------------------------------------------------------
 if(ALLOC_TEST_ALL OR ALLOC_TEST_TFMALLOC)
-  make_allocator_app(tfmalloc NO_FIND_PACKAGE)
+  if(NEW_DELETE_WITH_FANCY_POINTERS)
+    set(NEW_DELETE_WITH_FANCY_POINTERS FALSE)
+    make_allocator_app(tfmalloc NO_FIND_PACKAGE)
+    set(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
+  else()
+    make_allocator_app(tfmalloc NO_FIND_PACKAGE)
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------

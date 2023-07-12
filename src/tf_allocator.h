@@ -21,6 +21,7 @@ template<typename T>
 class tfmallocAllocatorForTest : public allocator<T>
 {
     using base = allocator<T>;
+	using pointer = fancy_ptr<T*>;
 	ThreadTestRes* testRes;
 
 public:

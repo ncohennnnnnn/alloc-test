@@ -15,12 +15,12 @@
 #if ALLOC_TEST_HWMALLOC
 
 #include "hw_allocator.h"
-using ActualAllocator = hwmallocAllocatorForTest;
+using ActualAllocator = hwmallocAllocatorForTest<uint8_t>;
 
 #elif ALLOC_TEST_TFMALLOC
 
 #include "tf_allocator.h"
-using ActualAllocator = tfmallocAllocatorForTest;
+using ActualAllocator = tfmallocAllocatorForTest<uint8_t>;
 
 #endif
 

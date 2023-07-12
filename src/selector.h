@@ -46,12 +46,12 @@
 #if ALLOC_TEST_HWMALLOC
 
 #include "hw_allocator.h"
-typedef hwmallocAllocatorForTest MyAllocatorT;
+typedef hwmallocAllocatorForTest<uint8_t> MyAllocatorT;
 
 #elif ALLOC_TEST_TFMALLOC
 
 #include "tf_allocator.h"
-typedef tfmallocAllocatorForTest MyAllocatorT; // change the name of the class
+typedef tfmallocAllocatorForTest<uint8_t> MyAllocatorT; // change the name of the class
 
 #else
 
