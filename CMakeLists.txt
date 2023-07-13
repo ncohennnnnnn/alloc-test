@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 # ------------------------------------------------------------------------------
 # Default to Release build type
 # ------------------------------------------------------------------------------
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 # ------------------------------------------------------------------------------
 # cmake module path for find_package
@@ -207,6 +207,15 @@ set_source_files_properties(print_all_dependencies PROPERTIES SYMBOLIC "true")
 # hwmalloc
 # ------------------------------------------------------------------------------
 if(ALLOC_TEST_ALL OR ALLOC_TEST_HWMALLOC)
+
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/hwmalloc)
+    message(STATUS "Using hwmalloc in source tree")
+    # use the source in this directory
+    set(FETCHCONTENT_SOURCE_DIR_HWMALLOC ${CMAKE_CURRENT_SOURCE_DIR}/extern/hwmalloc)
+    # don't change branches, or pull
+    set(FETCHCONTENT_UPDATES_DISCONNECTED_HWMALLOC ON)
+  endif()
+
   if(NOT _hwmalloc_already_fetched)
     set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
     set(_hwmalloc_tag "refactoring2")
@@ -225,19 +234,15 @@ if(ALLOC_TEST_ALL OR ALLOC_TEST_HWMALLOC)
     # -------------------------------------------------------
     # Compile hwmalloc without NUMA, Boost, logging or device
     # -------------------------------------------------------
-    set(HWMALLOC_ENABLE_DEVICE FALSE)
-    set(HWMALLOC_ENABLE_LOGGING FALSE)
-    set(HWMALLOC_DEVICE_RUNTIME 0)
+    set(HWMALLOC_ENABLE_DEVICE  FALSE CACHE BOOL "")
+    set(HWMALLOC_ENABLE_LOGGING FALSE CACHE BOOL "")
+    set(HWMALLOC_DEVICE_RUNTIME 0     CACHE STRING "")
 
     set(_hwmalloc_already_fetched
         ON
         CACHE INTERNAL ""
     )
 
-    configure_file(
-      ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in
-      ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp
-    )
   endif()
 
   # create hwmalloc library
