@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------------
  * Copyright (c) 2018, OLogN Technologies AG
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  *     * Neither the name of the <organization> nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,11 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * -------------------------------------------------------------------------------
- * 
+ *
  * Memory allocator tester -- void allocator (used for estimating cost of test itself)
- * 
+ *
  * v.1.00    Jun-22-2018    Initial release
- * 
+ *
  * -------------------------------------------------------------------------------*/
 
 
@@ -40,36 +40,39 @@
 template<class ActualAllocator>
 class VoidAllocatorForTest
 {
-	ThreadTestRes* testRes;
-	ThreadTestRes discardedTestRes;
-	ActualAllocator alloc;
-	uint8_t* fakeBuffer = nullptr;
-	static constexpr size_t fakeBufferSize = 0x1000000;
+    ThreadTestRes* testRes;
+    ThreadTestRes discardedTestRes;
+    ActualAllocator alloc;
+    uint8_t* fakeBuffer = nullptr;
+    static constexpr size_t fakeBufferSize = 0x1000000;
 
 public:
-	VoidAllocatorForTest( ThreadTestRes* testRes_ ) : alloc( &discardedTestRes ) { testRes = testRes_; }
-	static constexpr bool isFake() { return true; } // thus indicating that certain checks over allocated memory should be ommited
-	static constexpr bool isFancy() { return false; }
+    VoidAllocatorForTest( ThreadTestRes* testRes_ ) : alloc( &discardedTestRes ) { testRes = testRes_; }
+    using is_fake = std::true_type;
+    using is_fancy = std::false_type;
 
-	static constexpr const char* name() { return "void allocator"; }
+    static constexpr bool isFake() { return true; } // thus indicating that certain checks over allocated memory should be ommited
+    static constexpr bool isFancy() { return false; }
 
-	void init()
-	{
-		alloc.init();
-		fakeBuffer = reinterpret_cast<uint8_t*>( alloc.allocate( fakeBufferSize ) );
-	}
-	void* allocateSlots( size_t sz ) { static_assert( isFake()); assert( sz <= fakeBufferSize ); return alloc.allocate( sz ); }
-	void* allocate( size_t sz ) { assert( sz <= fakeBufferSize ); return fakeBuffer; }
-	void deallocate( void* ptr ) {}
-	void deallocateSlots( void* ptr ) {alloc.deallocate( ptr );}
-	void deinit() { if ( fakeBuffer ) alloc.deallocate( fakeBuffer ); fakeBuffer = nullptr; }
+    static constexpr const char* name() { return "void allocator"; }
 
-	// next calls are to get additional stats of the allocator, etc, if desired
-	void doWhateverAfterSetupPhase() {}
-	void doWhateverAfterMainLoopPhase() {}
-	void doWhateverAfterCleanupPhase() {}
+    void init()
+    {
+        alloc.init();
+        fakeBuffer = reinterpret_cast<uint8_t*>( alloc.allocate( fakeBufferSize ) );
+    }
+    void* allocateSlots( size_t sz ) { static_assert( isFake()); assert( sz <= fakeBufferSize ); return alloc.allocate( sz ); }
+    void* allocate( size_t sz ) { assert( sz <= fakeBufferSize ); return fakeBuffer; }
+    void deallocate( void* ptr ) {}
+    void deallocateSlots( void* ptr ) {alloc.deallocate( ptr );}
+    void deinit() { if ( fakeBuffer ) alloc.deallocate( fakeBuffer ); fakeBuffer = nullptr; }
 
-	ThreadTestRes* getTestRes() { return testRes; }
+    // next calls are to get additional stats of the allocator, etc, if desired
+    void doWhateverAfterSetupPhase() {}
+    void doWhateverAfterMainLoopPhase() {}
+    void doWhateverAfterCleanupPhase() {}
+
+    ThreadTestRes* getTestRes() { return testRes; }
 };
 
 

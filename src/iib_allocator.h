@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------------
  * Copyright (c) 2018, OLogN Technologies AG
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  *     * Neither the name of the <organization> nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,11 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * -------------------------------------------------------------------------------
- * 
+ *
  * Memory allocator tester -- ologn allocator
- * 
+ *
  * v.1.00    Jun-27-2018    Initial release
- * 
+ *
  * -------------------------------------------------------------------------------*/
 
 
@@ -41,33 +41,38 @@
 
 class IibmallocAllocatorForTest
 {
-	ThreadTestRes* testRes;
+    ThreadTestRes* testRes;
 
 public:
-	IibmallocAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
-	static constexpr bool isFake() { return false; }
+    IibmallocAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
 
-	static constexpr const char* name() { return "iibmalloc allocator"; }
+    using is_fake = std::false_type;
+    using is_fancy = std::false_type;
 
-	void init()
-	{
-		g_AllocManager.initialize();
-		g_AllocManager.enable();
-	}
-	void* allocate( size_t sz ) { return g_AllocManager.allocate( sz ); }
-	void deallocate( void* ptr ) { g_AllocManager.deallocate( ptr ); }
-	void deinit()
-	{
-		g_AllocManager.deinitialize();
-		g_AllocManager.disable();
-	}
+    static constexpr bool isFake() { return false; }
+    static constexpr bool isFancy() { return false; }
 
-	// next calls are to get additional stats of the allocator, etc, if desired
-	void doWhateverAfterSetupPhase() {}
-	void doWhateverAfterMainLoopPhase() {}
-	void doWhateverAfterCleanupPhase() {}
+    static constexpr const char* name() { return "iibmalloc allocator"; }
 
-	ThreadTestRes* getTestRes() { return testRes; }
+    void init()
+    {
+        g_AllocManager.initialize();
+        g_AllocManager.enable();
+    }
+    void* allocate( size_t sz ) { return g_AllocManager.allocate( sz ); }
+    void deallocate( void* ptr ) { g_AllocManager.deallocate( ptr ); }
+    void deinit()
+    {
+        g_AllocManager.deinitialize();
+        g_AllocManager.disable();
+    }
+
+    // next calls are to get additional stats of the allocator, etc, if desired
+    void doWhateverAfterSetupPhase() {}
+    void doWhateverAfterMainLoopPhase() {}
+    void doWhateverAfterCleanupPhase() {}
+
+    ThreadTestRes* getTestRes() { return testRes; }
 };
 
 
