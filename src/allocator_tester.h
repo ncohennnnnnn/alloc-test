@@ -483,7 +483,7 @@ struct select_alloc {
 };
 
 template<typename A, typename T>
-struct select_alloc<A, T, std::enable_if_t<!A().isFake() && A().isFancy(), bool> >
+struct select_alloc<A, T, std::enable_if_t<!A::is_fake::value && A::is_fancy::value> >
 {
     // this only works for hwmalloc allocators that have a custom rebind
     using type = typename A::template rebind<T>::other;
