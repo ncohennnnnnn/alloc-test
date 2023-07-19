@@ -40,7 +40,8 @@ public:
     template<typename U>
     struct other_alloc
     {
-        using other = VoidAllocatorForTest<U>;
+        using new_alloc = typename ActualAllocator::template other_alloc<U>::other;
+        using other = VoidAllocatorForTest<new_alloc>;
     };
     template<typename U>
     using rebind = other_alloc<U>;
@@ -68,8 +69,8 @@ public:
     }
     auto allocateSlots( size_t sz ) { static_assert( isFake()); assert( sz <= fakeBufferSize ); return alloc.allocate( sz ); }
     auto allocate( size_t sz ) { assert( sz <= fakeBufferSize ); return fakeBuffer; }
-    void deallocate( pointer const& ptr ) {} // maybe try without const&
-    void deallocateSlots( pointer const& ptr ) {alloc.deallocate( ptr );} // maybe try without const&
+    void deallocate( pointer ptr ) {} // maybe try with const&
+    void deallocateSlots( pointer ptr ) {alloc.deallocate( ptr );} // maybe try with const&
     void deinit() { if ( fakeBuffer ) alloc.deallocate( fakeBuffer ); fakeBuffer = nullptr; }
 
     // next calls are to get additional stats of the allocator, etc, if desired

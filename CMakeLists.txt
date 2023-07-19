@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 # ------------------------------------------------------------------------------
 # Default to Release build type
 # ------------------------------------------------------------------------------
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 
 # ------------------------------------------------------------------------------
 # cmake module path for find_package

@@ -98,7 +98,7 @@ public:
     static constexpr const char* name() { return "hwmalloc allocator"; }
 
     void init(){}
-    void deallocate(pointer const& ptr) {base::deallocate(ptr, sizeof(ptr)); }
+    void deallocate(pointer ptr) {base::deallocate(ptr, sizeof(ptr)); } // got rid of the const&
     void deinit(){}
 
     // next calls are to get additional stats of the allocator, etc, if desired

@@ -43,10 +43,19 @@ class NewDeleteAllocatorForTest
     ThreadTestRes* testRes;
 
 public:
+    template<typename U>
+    struct other_alloc
+    {
+        using other = NewDeleteAllocatorForTest;
+    };
+    template<typename U>
+    using rebind = other_alloc<U>;
+
+public:
     NewDeleteAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
+
     using is_fake = std::false_type;
     using is_fancy = std::false_type;
-
     static constexpr bool isFake() { return false; }
     static constexpr bool isFancy() { return false; }
 

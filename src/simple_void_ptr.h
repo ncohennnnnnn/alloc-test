@@ -245,12 +245,12 @@ class allocator
         return {ptr};
     }
 
-    void deallocate(pointer const& p, size_type)
+    void deallocate(pointer p) // got rid of the const&
     {
         std::free(p.get());
     }
 
-    void deallocate(u_int8_t* const& p, size_type)
+    void deallocate(u_int8_t* p)// got rid of the const&
     {
         std::free(p);
     }
