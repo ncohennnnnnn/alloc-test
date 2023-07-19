@@ -25,6 +25,15 @@ class tfmallocAllocatorForTest : public allocator<T>
     ThreadTestRes* testRes;
 
 public:
+    template<typename U>
+    struct other_alloc
+    {
+        using other = tfmallocAllocatorForTest<U>;
+    };
+    template<typename U>
+    using rebind = other_alloc<U>;
+
+public:
     tfmallocAllocatorForTest( ThreadTestRes* testRes_ ) { testRes = testRes_; }
     using is_fake = std::false_type;
     using is_fancy = std::true_type;
@@ -35,7 +44,7 @@ public:
     static constexpr const char* name() { return "tfmalloc allocator"; }
 
     void init(){}
-    void deallocate(pointer const& ptr) {base::deallocate(ptr, sizeof(ptr)); }
+    void deallocate(pointer ptr) {base::deallocate(ptr, sizeof(ptr)); } // maybe try with const&
     void deinit(){}
 
     // next calls are to get additional stats of the allocator, etc, if desired

@@ -135,12 +135,12 @@ int main()
         params.testRes = testResMyAlloc + params.startupParams.threadCount;
         runTest<MyAllocatorT>( &params );
 
-//        if ( params.startupParams.mat != MEM_ACCESS_TYPE::check )
-//        {
-//            params.startupParams.maxItems = maxItems / params.startupParams.threadCount;
-//            params.testRes = testResVoidAlloc + params.startupParams.threadCount;
-//            runTest<VoidAllocatorForTest<MyAllocatorT>>( &params );
-//        }
+       if ( params.startupParams.mat != MEM_ACCESS_TYPE::check )
+       {
+           params.startupParams.maxItems = maxItems / params.startupParams.threadCount;
+           params.testRes = testResVoidAlloc + params.startupParams.threadCount;
+           runTest<VoidAllocatorForTest<MyAllocatorT>>( &params );
+       }
     }
 
     if ( params.startupParams.mat == MEM_ACCESS_TYPE::check )

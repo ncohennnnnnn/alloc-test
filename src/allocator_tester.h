@@ -58,19 +58,6 @@
 #include "void_allocator.h" // used as an estimation of the cost of test itself
 #else
 #include "void_fptr_allocator.h" // used as an estimation of the cost of test itself
-template<typename T>
-struct pointer_traits {
-    static auto to_address(T p) noexcept {
-        return p.get();
-    }
-};
-
-template<typename T>
-struct pointer_traits<T*> {
-    static auto to_address(T* p) noexcept {
-        return p;
-    }
-};
 #endif
 
 class PRNG
@@ -476,6 +463,19 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 
 #else
 
+template<typename T>
+struct pointer_traits {
+    static auto to_address(T p) noexcept {
+        return p.get();
+    }
+};
+
+template<typename T>
+struct pointer_traits<T*> {
+    static auto to_address(T* p) noexcept {
+        return p;
+    }
+};
 
 template<typename A, typename T, typename Enable = void>
 struct select_alloc {
@@ -483,9 +483,8 @@ struct select_alloc {
 };
 
 template<typename A, typename T>
-struct select_alloc<A, T, std::enable_if_t<!A::is_fake::value && A::is_fancy::value> >
+struct select_alloc<A, T, std::enable_if_t<A::is_fancy::value> > // got rid of the check if fake since we redefined rebound in void_ptr_allocator
 {
-    // this only works for hwmalloc allocators that have a custom rebind
     using type = typename A::template rebind<T>::other;
 };
 
@@ -550,12 +549,13 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
     TestBin<pointer>* baseBuff = nullptr;
 
     if constexpr ( !allocatorUnderTest.isFake() ) {
-        fbaseBuff = allocatorUnderTest_bin.allocate( maxItems );
-    } else {
-        fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems );
+        if constexpr ( allocatorUnderTest.isFancy() ) { fbaseBuff = allocatorUnderTest_bin.allocate( maxItems ); }
+        else { fbaseBuff = allocatorUnderTest_bin.allocate( maxItems * sizeof(TestBin<pointer>) ); }
+    } else if ( allocatorUnderTest.isFake() ) {
+        if constexpr ( allocatorUnderTest.isFancy() ) { fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems ); } 
+        else { fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems * sizeof(TestBin<pointer>) ); }
     }
-    // baseBuff = reinterpret_cast<TestBin*>( traits_bin::to_address( fbaseBuff ));
-    baseBuff = reinterpret_cast<TestBin<pointer>*>( fbaseBuff.get() );
+    baseBuff = reinterpret_cast<TestBin<pointer>*>( traits_bin::to_address( fbaseBuff ));
     assert( baseBuff );
     allocatedSz +=  maxItems * sizeof(TestBin<pointer>);
     memset( baseBuff, 0, allocatedSz );
@@ -637,6 +637,8 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
                 allocatedSz -= baseBuff[idx].sz;
 #endif
                 allocatorUnderTest.deallocate( baseBuff[idx].fptr );
+                // allocatorUnderTest.deallocate( baseBuff[idx].ptr );
+                baseBuff[idx].fptr= 0;
                 baseBuff[idx].ptr = 0;
             }
             else
