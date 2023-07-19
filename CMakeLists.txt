@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 # ------------------------------------------------------------------------------
 # Default to Release build type
 # ------------------------------------------------------------------------------
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 
 # ------------------------------------------------------------------------------
 # cmake module path for find_package
@@ -107,7 +107,7 @@ endif()
 # ------------------------------------------------------------------------------
 function(make_allocator_app alloc_name)
   # boilerplate to parse arguments
-  set(options NO_FIND_PACKAGE)
+  set(options NO_FIND_PACKAGE FANCY)
   set(one_value_args TEXTHINT)
   set(multi_value_args LINKLIBS)
   cmake_parse_arguments(
@@ -122,58 +122,56 @@ function(make_allocator_app alloc_name)
   string(TOUPPER ${alloc_name} UPPER_NAME)
   string(TOLOWER ${alloc_name} LOWER_NAME)
 
+  if(ALLOC_OPTION_FANCY)
+    set(TARGET_NAME allocator_tester_${LOWER_NAME}_fancy)
+  else()
+    set(TARGET_NAME allocator_tester_${LOWER_NAME})
+  endif()
+
   if(${UPPER_NAME}_FOUND OR ${alloc_name}_FOUND)
     message(STATUS "${alloc_name} found : ${ALLOC_OPTION_TEXTHINT}")
 
     # Add the executable target
     add_executable(
-      allocator_tester_${LOWER_NAME} src/test_common.cpp
+      ${TARGET_NAME} src/test_common.cpp
                                      src/allocator_tester.cpp
     )
-    target_include_directories(allocator_tester_${LOWER_NAME} PUBLIC src)
+    target_include_directories(${TARGET_NAME} PUBLIC src)
     target_link_libraries(
-      allocator_tester_${LOWER_NAME} PUBLIC ${${UPPER_NAME}_LIBRARY}
+      ${TARGET_NAME} PUBLIC ${${UPPER_NAME}_LIBRARY}
                                             ${ALLOC_OPTION_LINKLIBS}
     )
     target_compile_definitions(
-      allocator_tester_${LOWER_NAME} PUBLIC ALLOC_TEST_${UPPER_NAME}
+      ${TARGET_NAME} PUBLIC ALLOC_TEST_${UPPER_NAME}
     )
 
-    if(NEW_DELETE_WITH_FANCY_POINTERS)
+    if(ALLOC_OPTION_FANCY)
       target_compile_definitions(
-        allocator_tester_${LOWER_NAME} PUBLIC NEW_DELETE_WITH_FANCY_POINTERS
+        ${TARGET_NAME} PUBLIC NEW_DELETE_WITH_FANCY_POINTERS
       )
-      set(output_path ${PRINT_OUTPUT_DIR}/test_fancy_${LOWER_NAME}.txt)
-      if(EXISTS ${output_path})
-        message("Removing previous ${alloc_name} result file...")
-        file(REMOVE ${output_path})
-      endif()
+      set(output_path ${PRINT_OUTPUT_DIR}/test_${LOWER_NAME}_fancy.txt)
     else()
       set(output_path ${PRINT_OUTPUT_DIR}/test_${LOWER_NAME}.txt)
-      if(EXISTS ${output_path})
-        message("Removing previous ${alloc_name} result file...")
-        file(REMOVE ${output_path})
-      endif()
     endif()
 
     # create a `ctest` test that executes the allocator tester note that ctest
     # doesn't use a shell, so we can't redirect the output to a file using the
     # usual '>' operator
-    add_test(NAME allocator_tester_${LOWER_NAME}
-             COMMAND "$<TARGET_FILE:allocator_tester_${LOWER_NAME}>"
+    add_test(NAME ${TARGET_NAME}
+             COMMAND "$<TARGET_FILE:${TARGET_NAME}>"
     )
 
     # create a custom target that executes the allocator tester as above, and
     # redirects the output to a file. Building this target will first build the
     # binary and then execute the test
     add_custom_target(
-      print_${LOWER_NAME}
+      print_${TARGET_NAME}
       # the target must be compiled before this test is run
-      DEPENDS $<TARGET_FILE:allocator_tester_${LOWER_NAME}>
-      COMMAND $<TARGET_FILE:allocator_tester_${LOWER_NAME}> > "${output_path}"
+      DEPENDS $<TARGET_FILE:${TARGET_NAME}>
+      COMMAND $<TARGET_FILE:${TARGET_NAME}> > "${output_path}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT
-        "Writing output of allocator_tester_${LOWER_NAME} to ${output_path}"
+        "Writing output of ${TARGET_NAME} to ${output_path}"
     )
 
     # append the same command to the "print_all" pseudo target
@@ -181,11 +179,11 @@ function(make_allocator_app alloc_name)
       OUTPUT print_all_dependencies
       APPEND COMMAND_EXPAND_LISTS
       COMMENT
-        "Sending output of allocator_tester_${LOWER_NAME} to ${output_path}"
+        "Sending output of ${TARGET_NAME} to ${output_path}"
       COMMAND
         echo
-        "Writing output of allocator_tester_${LOWER_NAME} to ${output_path}"
-      COMMAND $<TARGET_FILE:allocator_tester_${LOWER_NAME}> > "${output_path}"
+        "Writing output of ${TARGET_NAME} to ${output_path}"
+      COMMAND $<TARGET_FILE:${TARGET_NAME}> > "${output_path}"
     )
 
   else()
@@ -252,13 +250,7 @@ if(ALLOC_TEST_ALL OR ALLOC_TEST_HWMALLOC)
   find_package(Boost REQUIRED)
 
   # create the executable and link hwmalloc library to it
-  if(NEW_DELETE_WITH_FANCY_POINTERS)
-    set(NEW_DELETE_WITH_FANCY_POINTERS FALSE)
-    make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc)
-    set(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
-  else()
-    make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc Boost::boost)
-  endif()
+  make_allocator_app(hwmalloc NO_FIND_PACKAGE LINKLIBS hwmalloc Boost::boost)
 
 endif()
 
@@ -266,13 +258,7 @@ endif()
 # tfmalloc
 # ------------------------------------------------------------------------------
 if(ALLOC_TEST_ALL OR ALLOC_TEST_TFMALLOC)
-  if(NEW_DELETE_WITH_FANCY_POINTERS)
-    set(NEW_DELETE_WITH_FANCY_POINTERS FALSE)
-    make_allocator_app(tfmalloc NO_FIND_PACKAGE)
-    set(NEW_DELETE_WITH_FANCY_POINTERS TRUE)
-  else()
-    make_allocator_app(tfmalloc NO_FIND_PACKAGE)
-  endif()
+  make_allocator_app(tfmalloc NO_FIND_PACKAGE)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -280,8 +266,16 @@ endif()
 # ------------------------------------------------------------------------------
 if(ALLOC_TEST_ALL OR ALLOC_TEST_JEMALLOC)
   make_allocator_app(
-    Jemalloc TEXTHINT "use MALLOC_CONF=stats_print:true bin/binary"
+    Jemalloc 
+    TEXTHINT "use MALLOC_CONF=stats_print:true bin/binary"
   )
+  if (NEW_DELETE_WITH_FANCY_POINTERS)
+    make_allocator_app(
+      Jemalloc 
+      TEXTHINT "use MALLOC_CONF=stats_print:true bin/binary"
+      FANCY
+    )
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -291,6 +285,12 @@ if(ALLOC_TEST_ALL OR ALLOC_TEST_MIMALLOC)
   make_allocator_app(
     mimalloc TEXTHINT "use env MIMALLOC_SHOW_STATS=1 bin/binary"
   )
+  if (NEW_DELETE_WITH_FANCY_POINTERS)
+    make_allocator_app(
+      mimalloc TEXTHINT "use env MIMALLOC_SHOW_STATS=1 bin/binary"
+      FANCY
+    )
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -298,6 +298,9 @@ endif()
 # ------------------------------------------------------------------------------
 if(ALLOC_TEST_ALL OR ALLOC_TEST_TCMALLOC)
   make_allocator_app(Tcmalloc)
+  if (NEW_DELETE_WITH_FANCY_POINTERS)
+    make_allocator_app(Tcmalloc FANCY)
+  endif()
 endif()
 
 # create a psuedo target that executes all tests
