@@ -47,11 +47,12 @@ class VoidAllocatorForTest
 	static constexpr size_t fakeBufferSize = 0x1000000;
 
 public:
-	VoidAllocatorForTest( ThreadTestRes* testRes_ ) : alloc( &discardedTestRes ) { testRes = testRes_; }
-	static constexpr bool isFake() { return true; } // thus indicating that certain checks over allocated memory should be ommited
-	static constexpr bool isFancy() { return false; }
+    VoidAllocatorForTest( ThreadTestRes* testRes_ ) : alloc( &discardedTestRes ) { testRes = testRes_; }
 
-	static constexpr const char* name() { return "void allocator"; }
+    using is_fake = std::true_type;
+    using is_fancy = std::false_type;
+    static constexpr bool isFake() { return true; } // thus indicating that certain checks over allocated memory should be ommited
+    static constexpr bool isFancy() { return false; }
 
 	void init()
 	{

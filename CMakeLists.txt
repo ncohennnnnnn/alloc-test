@@ -52,7 +52,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY
 # Set choice variables
 # ------------------------------------------------------------------------------
 set(NB_THREADS
-    16
+    4
     CACHE STRING "Number of threads to test with"
 )
 configure_file(
@@ -63,7 +63,7 @@ configure_file(
 # Set allocators to test, set the use of fancy pointers for new/delete
 # allocators
 # ------------------------------------------------------------------------------
-option(ALLOC_TEST_ALL FALSE)
+option(ALLOC_TEST_ALL TRUE)
 option(ALLOC_TEST_HWMALLOC FALSE)
 option(ALLOC_TEST_TFMALLOC FALSE) # TF := Test of Fancy
 option(ALLOC_TEST_JEMALLOC FALSE)

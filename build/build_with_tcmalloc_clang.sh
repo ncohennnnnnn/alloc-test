@@ -1,1 +1,0 @@
-clang++-6.0 ../src/test_common.cpp ../src/allocator_tester.cpp -std=c++1z -g -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-empty-body -DNDEBUG -O3 -flto -L libmalloc.a  -lpthread -o tester_clang_ptmalloc.bin
