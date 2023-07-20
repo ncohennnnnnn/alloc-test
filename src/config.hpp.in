@@ -1,3 +1,5 @@
 #define NB_THREADS @NB_THREADS@
+#define MAX_ITEMS @MAX_ITEMS@
 
 size_t threadMax = @NB_THREADS@;
+size_t maxItems = 1 << @MAX_ITEMS@;

@@ -119,8 +119,7 @@ int main()
     memset( testResMyAlloc, 0, sizeof( testResMyAlloc ) );
     memset( testResVoidAlloc, 0, sizeof( testResVoidAlloc ) );
 
-    // size_t maxItems = 1 << 25;
-    size_t maxItems = 1 << 15;
+    // size_t maxItems = 1 << 25; // Now defined in config.hpp
     TestStartupParamsAndResults params;
     params.startupParams.iterCount = 100000000;
     params.startupParams.maxItemSize = 16;

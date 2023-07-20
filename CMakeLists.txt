@@ -55,6 +55,10 @@ set(NB_THREADS
     16
     CACHE STRING "Number of threads to test with"
 )
+set(MAX_ITEMS
+    25
+    CACHE STRING "Maximum number of items in temrs of bit shifts (1 << X)"
+)
 configure_file(
   ${PROJECT_SOURCE_DIR}/src/config.hpp.in ${PROJECT_SOURCE_DIR}/src/config.hpp
 )
