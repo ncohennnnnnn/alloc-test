@@ -459,6 +459,19 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 #include "void_fptr_allocator.h" // used as an estimation of the cost of test itself
 // #include "demangle_helper.hpp"
 
+template<typename T>
+struct pointer_traits {
+    static auto to_address(T p) noexcept {
+        return p.get();
+    }
+};
+
+template<typename T>
+struct pointer_traits<T*> {
+    static auto to_address(T* p) noexcept {
+        return p;
+    }
+};
 
 template<typename T>
 struct pointer_traits {
