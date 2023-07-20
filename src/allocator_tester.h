@@ -52,7 +52,6 @@
 #endif
 
 #include "test_common.h"
-#include "demangle_helper.hpp"
 
 class PRNG
 {
@@ -458,6 +457,8 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 
 #else
 #include "void_fptr_allocator.h" // used as an estimation of the cost of test itself
+// #include "demangle_helper.hpp"
+
 
 template<typename T>
 struct pointer_traits {
@@ -497,7 +498,6 @@ struct TestBin
 template<class AllocatorUnderTest, MEM_ACCESS_TYPE mat>
 void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCount, size_t maxItems, size_t maxItemSizeExp, size_t threadID, size_t rnd_seed )
 {
-    // typename select_alloc<AllocatorUnderTest, uint8_t>::type allocatorUnderTest_char(allocatorUnderTest.getTestRes());
 
     if( maxItemSizeExp >= 32 )
     {
@@ -507,7 +507,6 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 
     static constexpr const char* memAccessTypeStr = mat == MEM_ACCESS_TYPE::none ? "none" : ( mat == MEM_ACCESS_TYPE::single ? "single" : ( mat == MEM_ACCESS_TYPE::full ? "full" : ( mat == MEM_ACCESS_TYPE::check ? "check" : "unknown" ) ) );
     printf( "    running thread %zd with \'%s\' and maxItemSizeExp = %zd, maxItems = %zd, iterCount = %zd, allocated memory access mode: %s,  [rnd_seed = %lu] ...\n", threadID, allocatorUnderTest.name(), maxItemSizeExp, maxItems, iterCount, memAccessTypeStr, rnd_seed );
-    // printf("Hi from break 1");
     constexpr bool doMemAccess = mat != MEM_ACCESS_TYPE::none;
 
     allocatorUnderTest.init();
@@ -528,17 +527,16 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
     assert( maxItems <= UINT32_MAX );
     Pareto_80_20_6_Init( paretoData, (uint32_t)maxItems );
 
-    using pointer =decltype(allocatorUnderTest.allocate(1));
+    using pointer =decltype(allocatorUnderTest.allocate(1)); // void * for N/D
     using traits = pointer_traits<pointer>;
 
-    using rebound_alloc = typename select_alloc<AllocatorUnderTest, TestBin<pointer>>::type;
-    std::cout << "allocator is " << pika::debug::detail::print_type<AllocatorUnderTest>() << std::endl;
-    std::cout << "rebound   is " << pika::debug::detail::print_type<rebound_alloc>() << std::endl;
-    std::cout << "Fake " << allocatorUnderTest.isFake() << " Fancy " <<  allocatorUnderTest.isFancy() << std::endl;
+    using rebound_alloc = typename select_alloc<AllocatorUnderTest, TestBin<pointer>>::type; // returns the same allocator for N/D
+    // std::cout << "allocator is " << pika::debug::detail::print_type<AllocatorUnderTest>() << std::endl;
+    // std::cout << "rebound   is " << pika::debug::detail::print_type<rebound_alloc>() << std::endl;
+    // std::cout << "Fake " << allocatorUnderTest.isFake() << " Fancy " <<  allocatorUnderTest.isFancy() << std::endl;
     rebound_alloc allocatorUnderTest_bin(allocatorUnderTest.getTestRes());
 
-
-    using pointer_bin =decltype(allocatorUnderTest_bin.allocate(1));
+    using pointer_bin =decltype(allocatorUnderTest_bin.allocate(1)); // void * for N/D
     using traits_bin = pointer_traits<pointer_bin>;
 
     pointer_bin fbaseBuff = nullptr;
@@ -546,14 +544,15 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
 
     if constexpr ( !allocatorUnderTest.isFake() ) {
         if constexpr ( allocatorUnderTest.isFancy() ) { fbaseBuff = allocatorUnderTest_bin.allocate( maxItems ); }
-        else { fbaseBuff = allocatorUnderTest_bin.allocate( maxItems * sizeof(TestBin<pointer>) ); }
+        else { fbaseBuff = allocatorUnderTest_bin.allocate( maxItems * sizeof(TestBin<uint8_t>) ); } // changed pointer to uint8_t
     } else if ( allocatorUnderTest.isFake() ) {
         if constexpr ( allocatorUnderTest.isFancy() ) { fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems ); } 
-        else { fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems * sizeof(TestBin<pointer>) ); }
+        else { fbaseBuff = allocatorUnderTest_bin.allocateSlots( maxItems * sizeof(TestBin<uint8_t>) ); } // changed pointer to uint8_t
     }
-    baseBuff = reinterpret_cast<TestBin<pointer>*>( traits_bin::to_address( fbaseBuff ));
+    baseBuff = reinterpret_cast<TestBin<pointer>*>( traits_bin::to_address( fbaseBuff ) );
     assert( baseBuff );
-    allocatedSz +=  maxItems * sizeof(TestBin<pointer>);
+    if ( allocatorUnderTest.isFancy() ) { allocatedSz +=  maxItems * sizeof(TestBin<pointer>); }
+    else { allocatedSz +=  maxItems * sizeof(TestBin<uint8_t>); }
     memset( baseBuff, 0, allocatedSz );
 
     PRNG rng;
@@ -568,9 +567,8 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
                 size_t randNumSz = rng.rng64();
                 size_t sz = calcSizeWithStatsAdjustment( randNumSz, maxItemSizeExp );
                 baseBuff[i*32+j].sz = (uint32_t)sz;
-                pointer tmp = allocatorUnderTest.allocate( sz );
-                baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( traits::to_address(tmp) );
-                baseBuff[i*32+j].fptr = tmp;
+                baseBuff[i*32+j].fptr = allocatorUnderTest.allocate( sz );
+                baseBuff[i*32+j].ptr = reinterpret_cast<uint8_t*>( traits::to_address( baseBuff[i*32+j].fptr ) );
                 if constexpr ( doMemAccess )
                 {
                     if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -633,7 +631,6 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
                 allocatedSz -= baseBuff[idx].sz;
 #endif
                 allocatorUnderTest.deallocate( baseBuff[idx].fptr );
-                // allocatorUnderTest.deallocate( baseBuff[idx].ptr );
                 baseBuff[idx].fptr= 0;
                 baseBuff[idx].ptr = 0;
             }
@@ -641,8 +638,8 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
             {
                 size_t sz = calcSizeWithStatsAdjustment( rng.rng64(), maxItemSizeExp );
                 baseBuff[idx].sz = (uint32_t)sz;
-                auto tmp = allocatorUnderTest.allocate( sz );
-                baseBuff[idx].ptr = reinterpret_cast<uint8_t*>(traits::to_address(tmp) );
+                baseBuff[idx].fptr = allocatorUnderTest.allocate( sz );
+                baseBuff[idx].ptr = reinterpret_cast<uint8_t*>(traits::to_address( baseBuff[idx].fptr ) );
                 if constexpr ( doMemAccess )
                 {
                     if constexpr ( mat == MEM_ACCESS_TYPE::full )
@@ -699,17 +696,14 @@ void randomPos_RandomSize( AllocatorUnderTest& allocatorUnderTest, size_t iterCo
                         }
                 }
             }
-            
             allocatorUnderTest.deallocate( baseBuff[idx].fptr );
         }
 
     if constexpr ( !allocatorUnderTest.isFake() )
     {
         allocatorUnderTest_bin.deallocate( fbaseBuff );
-        // allocatorUnderTest_bin.deallocate( baseBuff ); // Already deallocated since we deallocated fbaseBuff
     } else {
         allocatorUnderTest_bin.deallocateSlots( fbaseBuff );
-        // allocatorUnderTest_bin.deallocateSlots( baseBuff ); // Already deallocated since we deallocated fbaseBuff
     }
     allocatorUnderTest.deinit();
     allocatorUnderTest.getTestRes()->rdtscExit = __rdtsc();
