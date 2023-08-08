@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
+include(CMakeDependentOption)
+
 project(alloc-test)
 
 # Read version from file
@@ -10,15 +12,8 @@ set(MAJOR_VERSION ${CMAKE_MATCH_1})
 set(MINOR_VERSION ${CMAKE_MATCH_2})
 set(PATCH_VERSION ${CMAKE_MATCH_3})
 
-# Set the C++ standard to 17
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
+# Set the project version
+project(alloc-test VERSION ${PROJECT_VERSION})
 
 # cmake module path for find_package
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -29,6 +24,40 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Set the library and archive output directories
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# Set the C++ standard to 17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Build type
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# maximum number of threads
+set(ALLOC_TEST_MAX_NUM_THREADS 4 CACHE STRING "Number of threads to test with")
+
+# Options for building different tests
+option(ALLOC_TEST_BUILD_ALL_TESTS "Build tests for all allocators" OFF)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_STDMALLOC "Build with std::malloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_FANCYSTDMALLOC "Build with std::malloc using fancy pointers" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_TCMALLOC "Build with tcmalloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_MIMALLOC "Build with mimalloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_JEMALLOC "Build with jemalloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_HWMALLOC "Build with hwmalloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 
 # Add your source files
 set(SOURCES src/test.cpp)
@@ -42,15 +71,16 @@ set(COMMON_OPTIONS
 # Position Independent Code (PIC) option
 set(POSITION_INDEPENDENT_CODE ON)
 
-set(NB_THREADS 4 CACHE STRING "Number of threads to test with")
-
+# create config file
 configure_file(
     ${PROJECT_SOURCE_DIR}/cmake/config.hpp.in ${PROJECT_BINARY_DIR}/include/config.hpp
 )
 
+# required dependencies
 find_package(fmt REQUIRED)
 find_package(HWLOC REQUIRED)
 
+# create a shared library containing common utilities
 add_library(common SHARED src/thread_affinity.cpp src/task_group.cpp src/get_rss.cpp)
 set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ${POSITION_INDEPENDENT_CODE})
 target_link_libraries(common PRIVATE HWLOC::libhwloc)
@@ -86,35 +116,28 @@ function(add_custom_executable alloc_name)
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
 endfunction()
 
-# Cache option to enable building with std::malloc
-option(BUILD_WITH_STDMALLOC "Build with std::malloc" OFF)
-if (BUILD_WITH_STDMALLOC)
+
+# build different executables if enabled
+
+if (ALLOC_TEST_BUILD_WITH_STDMALLOC)
     add_custom_executable(stdmalloc)
 endif()
 
-# Cache option to enable building with std::malloc using fancy pointers
-option(BUILD_WITH_FANCYSTDMALLOC "Build with std::malloc using fancy pointers" OFF)
-if (BUILD_WITH_FANCYSTDMALLOC)
+if (ALLOC_TEST_BUILD_WITH_FANCYSTDMALLOC)
     add_custom_executable(fancystdmalloc)
 endif()
 
-# Cache option to enable building with tcmalloc
-option(BUILD_WITH_TCMALLOC "Build with tcmalloc" OFF)
-if (BUILD_WITH_TCMALLOC)
+if (ALLOC_TEST_BUILD_WITH_TCMALLOC)
     find_package(Tcmalloc REQUIRED)
     add_custom_executable(tcmalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS ${Tcmalloc_LIBRARY})
 endif()
 
-# Cache option to enable building with mimalloc
-option(BUILD_WITH_MIMALLOC "Build with mimalloc" OFF)
-if (BUILD_WITH_MIMALLOC)
+if (ALLOC_TEST_BUILD_WITH_MIMALLOC)
     find_package(mimalloc REQUIRED)
     add_custom_executable(mimalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS mimalloc)
 endif()
 
-# Cache option to enable building with jemalloc
-option(BUILD_WITH_JEMALLOC "Build with jemalloc" OFF)
-if (BUILD_WITH_JEMALLOC)
+if (ALLOC_TEST_BUILD_WITH_JEMALLOC)
     #find_package(Jemalloc REQUIRED)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(JEMALLOC jemalloc)
@@ -127,8 +150,7 @@ if (BUILD_WITH_JEMALLOC)
         LINKLIBS ${JEMALLOC_LIBRARIES})
 endif()
 
-option(BUILD_WITH_HWMALLOC "Build with hwmalloc" OFF)
-if (BUILD_WITH_HWMALLOC)
+if (ALLOC_TEST_BUILD_WITH_HWMALLOC)
     if(NOT _hwmalloc_already_fetched)
         set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
         set(_hwmalloc_tag "refactoring2")
@@ -166,5 +188,3 @@ if (BUILD_WITH_HWMALLOC)
     add_custom_executable(hwmalloc LINKLIBS hwmalloc Boost::boost)
 endif()
 
-# Set the project version
-project(alloc-test VERSION ${PROJECT_VERSION})

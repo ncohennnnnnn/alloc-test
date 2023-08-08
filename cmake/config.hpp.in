@@ -6,6 +6,6 @@
 
 namespace alloc_test {
 
-constexpr std::size_t max_threads = @NB_THREADS@;
+constexpr std::size_t max_threads = @ALLOC_TEST_MAX_NUM_THREADS@;
 
 } // namespace alloc_test
