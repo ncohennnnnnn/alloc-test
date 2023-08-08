@@ -142,7 +142,6 @@ if (ALLOC_TEST_BUILD_WITH_JEMALLOC)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(JEMALLOC jemalloc)
     pkg_search_module(JEMALLOC REQUIRED jemalloc)
-    message(STATUS ${JEMALLOC_LIBRARY_DIRS})
     add_custom_executable(jemalloc
         DEACTIVATE_BUILTIN_ALLOC
         INCLUDEDIRS ${JEMALLOC_INCLUDE_DIRS}
