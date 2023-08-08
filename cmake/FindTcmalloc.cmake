@@ -6,7 +6,7 @@
 #  Tcmalloc_FOUND       - True if Tcmalloc found.
 
 find_package(PkgConfig QUIET)
-pkg_check_modules(PC_JEMALLOC QUIET jemalloc)
+pkg_check_modules(PC_TCMALLOC QUIET tcmalloc)
 
 find_path(
   Tcmalloc_INCLUDE_DIR google/tcmalloc.h

@@ -1,0 +1,11 @@
+#pragma once
+
+#include <cstddef>
+
+#define NB_THREADS @NB_THREADS@
+
+namespace alloc_test {
+
+constexpr std::size_t max_threads = @NB_THREADS@;
+
+} // namespace alloc_test
