@@ -473,20 +473,6 @@ struct pointer_traits<T*> {
     }
 };
 
-template<typename T>
-struct pointer_traits {
-    static auto to_address(T p) noexcept {
-        return p.get();
-    }
-};
-
-template<typename T>
-struct pointer_traits<T*> {
-    static auto to_address(T* p) noexcept {
-        return p;
-    }
-};
-
 template<typename A, typename T, typename Enable = void>
 struct select_alloc {
     using type = A;
