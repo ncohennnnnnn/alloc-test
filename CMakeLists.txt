@@ -20,6 +20,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+# # path to BLT package to compile umpire
+# set(BLT_SOURCE_DIR 
+#     ${PROJECT_SOURCE_DIR}/extern/blt
+#     CACHE PATH "Directory for the blt source code"
+# )
+
 # cmake module path for find_package
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -60,6 +66,29 @@ target_include_directories(common PRIVATE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 
+# ------------------------------------------------------------------------------
+# setup plot directory/options
+# ------------------------------------------------------------------------------
+set(PRINT_OUTPUT_DIR
+    ${PROJECT_BINARY_DIR}/plot
+    CACHE PATH "Directory for plot scripts"
+)
+
+# if plot/output directory doesn't exist, create it
+if(NOT EXISTS ${PRINT_OUTPUT_DIR})
+  file(MAKE_DIRECTORY ${PRINT_OUTPUT_DIR})
+endif()
+
+# create a symlink to plot.ipynb in the build directory
+if(NOT EXISTS ${PRINT_OUTPUT_DIR}/plot.ipynb)
+  execute_process(
+    COMMAND
+      ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/plot/plot.ipynb
+      ${PRINT_OUTPUT_DIR}/plot.ipynb
+  )
+endif()
+
+
 # Function to compile executables
 function(add_custom_executable alloc_name)
     cmake_parse_arguments(ALLOC_OPTION "DEACTIVATE_BUILTIN_ALLOC" "" "LINKLIBS;LINKDIRS;INCLUDEDIRS" ${ARGN})
@@ -84,6 +113,23 @@ function(add_custom_executable alloc_name)
     target_include_directories(${target_name} PRIVATE ${ALLOC_OPTION_INCLUDEDIRS})
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
+
+    set(output_path ${PRINT_OUTPUT_DIR}/test_${alloc_name}.txt)
+
+    # create a custom target that executes the allocator tester as above, and
+    # redirects the output to a file. Building this target will first build the
+    # binary and then execute the test
+    add_custom_target(
+      print_${target_name}
+      # the target must be compiled before this test is run
+      DEPENDS $<TARGET_FILE:${target_name}>
+      COMMAND $<TARGET_FILE:${target_name}> > "${output_path}"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMENT
+        "Writing output of ${target_name} to ${output_path}"
+    )
+
+    
 endfunction()
 
 # Cache option to enable building with std::malloc
@@ -92,7 +138,7 @@ if (BUILD_WITH_STDMALLOC)
     add_custom_executable(stdmalloc)
 endif()
 
-# Cache option to enable building with std::malloc using fancy pointers
+# Cache option to enable building with fancy std::malloc
 option(BUILD_WITH_FANCYSTDMALLOC "Build with std::malloc using fancy pointers" OFF)
 if (BUILD_WITH_FANCYSTDMALLOC)
     add_custom_executable(fancystdmalloc)
@@ -127,35 +173,36 @@ if (BUILD_WITH_JEMALLOC)
         LINKLIBS ${JEMALLOC_LIBRARIES})
 endif()
 
+# Cache option to enable building with hwmalloc
 option(BUILD_WITH_HWMALLOC "Build with hwmalloc" OFF)
 if (BUILD_WITH_HWMALLOC)
-    if(NOT _hwmalloc_already_fetched)
-        set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
-        set(_hwmalloc_tag "refactoring2")
-        message(STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}")
+    # if(NOT _hwmalloc_already_fetched)
+      set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
+      set(_hwmalloc_tag "refactoring2")
+      message(STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}")
 
-        include(FetchContent)
-        fetchcontent_declare(
-          hwmalloc
-          GIT_REPOSITORY ${_hwmalloc_repository}
-          GIT_TAG ${_hwmalloc_tag}
-        )
-        fetchcontent_populate(hwmalloc)
+      include(FetchContent)
+      fetchcontent_declare(
+        hwmalloc
+        GIT_REPOSITORY ${_hwmalloc_repository}
+        GIT_TAG ${_hwmalloc_tag}
+      )
+      fetchcontent_populate(hwmalloc)
 
-        # -------------------------------------------------------
-        # Compile hwmalloc without NUMA, Boost, logging or device
-        # -------------------------------------------------------
-        set(HWMALLOC_ENABLE_DEVICE FALSE)
-        set(HWMALLOC_ENABLE_LOGGING FALSE)
-        set(HWMALLOC_DEVICE_RUNTIME 0)
+      # -------------------------------------------------------
+      # Compile hwmalloc without NUMA, Boost, logging or device
+      # -------------------------------------------------------
+      set(HWMALLOC_ENABLE_DEVICE FALSE)
+      set(HWMALLOC_ENABLE_LOGGING FALSE)
+      set(HWMALLOC_DEVICE_RUNTIME 0)
 
-        set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
+      set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
 
-        #configure_file(
-        #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in
-        #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp
-        #)
-    endif()
+      #configure_file(
+      #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in
+      #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp
+      #)
+    # endif()
 
     # create hwmalloc library
     add_subdirectory(${hwmalloc_SOURCE_DIR} ${hwmalloc_BINARY_DIR})
@@ -165,6 +212,54 @@ if (BUILD_WITH_HWMALLOC)
 
     add_custom_executable(hwmalloc LINKLIBS hwmalloc Boost::boost)
 endif()
+
+# Cache option to enable building with thread-safe pool UMPIRE malloc
+option(BUILD_WITH_TSPUMALLOC "Build with thread-safe pool UMPIRE malloc" OFF)
+if (BUILD_WITH_TSPUMALLOC)
+  find_package(umpire REQUIRED)
+  add_custom_executable(tspumalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS umpire)
+endif()
+
+# # Cache option to enable building with thread-safe pool UMPIRE malloc
+# option(BUILD_WITH_TSPUMALLOC "Build with thread-safe pool UMPIRE malloc" OFF)
+# if (BUILD_WITH_TSPUMALLOC)
+#   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/Umpire)
+#     message(STATUS "Using thread-safe pool UMPIRE malloc in source tree")
+#     # use the source in this directory
+#     set(FETCHCONTENT_SOURCE_DIR_UMPIRE ${CMAKE_CURRENT_SOURCE_DIR}/extern/Umpire)
+#     # don't change branches, or pull
+#     set(FETCHCONTENT_UPDATES_DISCONNECTED_UMPIRE ON)
+#   endif()
+
+#   # if(NOT _umpire_already_fetched)
+#   set(_umpire_repository "https://github.com/LLNL/Umpire")
+#   set(_umpire_tag "develop")
+#   message(
+#     STATUS "Fetching UMPIRE ${_umpire_tag} from ${_umpire_repository}"
+#   )
+
+#   include(FetchContent)
+#   FetchContent_Declare(
+#     Umpire
+#     GIT_REPOSITORY ${_umpire_repository}
+#     GIT_TAG ${_umpire_tag}
+#   )
+#   FetchContent_GetProperties(Umpire)
+#   FetchContent_Populate(Umpire)
+
+#   set(_umpire_already_fetched
+#       ON
+#       CACHE INTERNAL ""
+#   )
+#   # endif()
+
+#   # create umpire library
+#   add_subdirectory(${umpire_SOURCE_DIR} ${umpire_BINARY_DIR})
+
+#   # create the executable and link hwmalloc library to it
+#   add_custom_executable(tspumalloc NO_FIND_PACKAGE LINKLIBS umpire)
+
+# endif()
 
 # Set the project version
 project(alloc-test VERSION ${PROJECT_VERSION})

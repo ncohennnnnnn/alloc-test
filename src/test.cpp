@@ -11,6 +11,8 @@
 #include <test_allocators/je_allocator.hpp>
 #elif defined(ALLOC_TEST_TCMALLOC)
 #include <test_allocators/tc_allocator.hpp>
+#elif defined(ALLOC_TEST_TSPUMALLOC)
+#include <test_allocators/tspu_allocator.hpp>
 #endif
 
 #include <mem_access_type.hpp>

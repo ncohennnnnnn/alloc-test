@@ -233,8 +233,8 @@ void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size
     fmt::print(FMT_COMPILE("columns:\n"));
     fmt::print(FMT_COMPILE("thread,duration(ms),duration of void(ms),diff(ms),RSS max(pages),"
         "rssAfterExitingAllThreads(pages),RSS max for void(pages),"
-        "rssAfterExitingAllThreads for void(pages),allocatedAfterSetup(app level,bytes),"
-        "allocatedMax(app level,bytes),(RSS max<<12)/allocatedMax\n"));
+        "rssAfterExitingAllThreads for void(pages),allocatedAfterSetup(app level in bytes),"
+        "allocatedMax(app level in bytes),(RSS max<<12)/allocatedMax\n"));
     for (std::size_t n=0; n<num_threads; ++n) {
         auto& test_rec = test_records[n];
         auto& fake_rec = fake_records[n];

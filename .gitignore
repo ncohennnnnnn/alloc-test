@@ -76,3 +76,5 @@ _skbuild
 _skbuild
 .ccls-cache
 
+# extern folder
+extern
