@@ -8,7 +8,7 @@
 auto& rm = umpire::ResourceManager::getInstance();
 using alloc_type = umpire::Allocator;
 
-uint32_t initial_bytes = 1 << 20;
+uint32_t initial_bytes = 1 << 30;
 alloc_type u_allocator = rm.getAllocator("HOST");
 alloc_type pu_allocator = rm.makeAllocator<umpire::strategy::QuickPool>(
                                     "HOST_pool", u_allocator, initial_bytes);
