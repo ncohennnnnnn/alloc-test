@@ -35,6 +35,9 @@ register_memory(context&, void* ptr, std::size_t) {
 template<typename T>
 using test_allocator = hwmalloc::allocator<T, hwmalloc::heap<context>>;
 
+template<typename T>
+auto make_test_allocator() { return test_allocator<T>{}; }
+
 inline constexpr const char* allocator_name = "hwmalloc";
 
 } // namespace alloc_test

@@ -210,12 +210,11 @@ class fake_allocator : public wrapped_allocator<Allocator>
       public:
         buffer_resource(const buffer_resource&) = delete;
 
-        buffer_resource(buffer_resource&& other) {
-            release();
-            buffer = std::exchange(other.buffer, nullptr);
-            size = std::exchange(other.size, 0u);
-            a = std::move(other.a);
-        }
+        buffer_resource(buffer_resource&& other)
+        : a{std::move(other.a)}
+        , buffer{std::exchange(other.buffer, nullptr)}
+        , size{std::exchange(other.size, 0u)}
+        {}
 
         ~buffer_resource() { release(); }
 

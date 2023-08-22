@@ -183,6 +183,9 @@ void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size
 
     // maximum number of threads is capped by compile time constant
     num_threads = std::min(max_threads, num_threads);
+
+
+    fmt::print(FMT_STRING("Running with {:d} threads.\n"), num_threads);
     
     // rebind allocator to be sure to have value_type == std::uint8_t;
     using allocator = typename std::allocator_traits<Allocator>::template rebind_alloc<std::uint8_t>;

@@ -24,7 +24,7 @@
 #include <cstdint>
 
 int main() {
-    auto alloc = alloc_test::test_allocator<std::uint8_t>{};
+    auto alloc = alloc_test::make_test_allocator<std::uint8_t>();
 
     auto [cores, cpus] = alloc_test::threading::hardware_resources();
 
@@ -37,8 +37,8 @@ int main() {
 
     // run: alloc, iterations, bins, max size exponent, max number of threads
     //                          100000000, 33554432, 16
-    //alloc_test::run<mat>(alloc, 100000000, 10000000, 16, cores);
-    alloc_test::run<mat>(alloc, 100000000, 10000000, 10, 16);
+    alloc_test::run<mat>(alloc, 100000000, 10000000, 16, cores);
+    //alloc_test::run<mat>(alloc, 100000000, 10000000, 10, cores);
 
     return 0;
 }
