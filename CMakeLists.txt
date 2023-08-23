@@ -58,6 +58,9 @@ cmake_dependent_option(
 cmake_dependent_option(
     ALLOC_TEST_BUILD_WITH_HWMALLOC "Build with hwmalloc" OFF
     "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_TSPUMALLOC "Build with UMPIRE" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 
 # Add your source files
 set(SOURCES src/test.cpp)
@@ -90,6 +93,29 @@ target_include_directories(common PRIVATE
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 
+# ------------------------------------------------------------------------------
+# setup plot directory/options
+# ------------------------------------------------------------------------------
+set(PRINT_OUTPUT_DIR
+    ${PROJECT_BINARY_DIR}/plot
+    CACHE PATH "Directory for plot scripts"
+)
+
+# if plot/output directory doesn't exist, create it
+if(NOT EXISTS ${PRINT_OUTPUT_DIR})
+  file(MAKE_DIRECTORY ${PRINT_OUTPUT_DIR})
+endif()
+
+# create a symlink to plot.ipynb in the build directory
+if(NOT EXISTS ${PRINT_OUTPUT_DIR}/plot.ipynb)
+  execute_process(
+    COMMAND
+      ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/plot/plot.ipynb
+      ${PRINT_OUTPUT_DIR}/plot.ipynb
+  )
+endif()
+
+
 # Function to compile executables
 function(add_custom_executable alloc_name)
     cmake_parse_arguments(ALLOC_OPTION "DEACTIVATE_BUILTIN_ALLOC" "" "LINKLIBS;LINKDIRS;INCLUDEDIRS" ${ARGN})
@@ -114,6 +140,23 @@ function(add_custom_executable alloc_name)
     target_include_directories(${target_name} PRIVATE ${ALLOC_OPTION_INCLUDEDIRS})
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
+
+    set(output_path ${PRINT_OUTPUT_DIR}/test_${alloc_name}.txt)
+
+    # create a custom target that executes the allocator tester as above, and
+    # redirects the output to a file. Building this target will first build the
+    # binary and then execute the test
+    add_custom_target(
+      print_${target_name}
+      # the target must be compiled before this test is run
+      DEPENDS $<TARGET_FILE:${target_name}>
+      COMMAND $<TARGET_FILE:${target_name}> > "${output_path}"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMENT
+        "Writing output of ${target_name} to ${output_path}"
+    )
+
+    
 endfunction()
 
 
@@ -155,27 +198,22 @@ if (ALLOC_TEST_BUILD_WITH_HWMALLOC)
         set(_hwmalloc_tag "refactoring2")
         message(STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}")
 
-        include(FetchContent)
-        fetchcontent_declare(
-          hwmalloc
-          GIT_REPOSITORY ${_hwmalloc_repository}
-          GIT_TAG ${_hwmalloc_tag}
-        )
-        fetchcontent_populate(hwmalloc)
+      include(FetchContent)
+      fetchcontent_declare(
+        hwmalloc
+        GIT_REPOSITORY ${_hwmalloc_repository}
+        GIT_TAG ${_hwmalloc_tag}
+      )
+      fetchcontent_populate(hwmalloc)
 
-        # -------------------------------------------------------
-        # Compile hwmalloc without NUMA, Boost, logging or device
-        # -------------------------------------------------------
-        set(HWMALLOC_ENABLE_DEVICE FALSE)
-        set(HWMALLOC_ENABLE_LOGGING FALSE)
-        set(HWMALLOC_DEVICE_RUNTIME 0)
+      # -------------------------------------------------------
+      # Compile hwmalloc without NUMA, Boost, logging or device
+      # -------------------------------------------------------
+      set(HWMALLOC_ENABLE_DEVICE FALSE)
+      set(HWMALLOC_ENABLE_LOGGING FALSE)
+      set(HWMALLOC_DEVICE_RUNTIME 0)
 
-        set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
-
-        #configure_file(
-        #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp.in
-        #  ${CMAKE_CURRENT_BINARY_DIR}/_deps/hwmalloc-src/cmake/config.hpp
-        #)
+      set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
     endif()
 
     # create hwmalloc library
@@ -187,3 +225,9 @@ if (ALLOC_TEST_BUILD_WITH_HWMALLOC)
     add_custom_executable(hwmalloc LINKLIBS hwmalloc Boost::boost)
 endif()
 
+if (ALLOC_TEST_BUILD_WITH_TSPUMALLOC)
+  find_package(umpire REQUIRED)
+  add_custom_executable(tspumalloc
+      #DEACTIVATE_BUILTIN_ALLOC
+      LINKLIBS umpire)
+endif()
