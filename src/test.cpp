@@ -36,8 +36,8 @@ int main() {
     //static constexpr auto mat = alloc_test::mem_access_type::check;
 
     // run: alloc, iterations, bins, max size exponent, max number of threads
-    //                          100000000, 33554432, 16
-    alloc_test::run<mat>(alloc, 100000000, 10000000, 16, cores);
+    alloc_test::run<mat>(alloc, 100000000, 33554432, 16, cores);
+    //alloc_test::run<mat>(alloc, 100000000, 10000000, 16, cores);
     //alloc_test::run<mat>(alloc, 100000000, 10000000, 10, cores);
 
     return 0;
