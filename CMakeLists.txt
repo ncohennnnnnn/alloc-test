@@ -154,13 +154,11 @@ function(add_custom_executable alloc_name)
       print_${target_name}
       # the target must be compiled before this test is run
       DEPENDS $<TARGET_FILE:${target_name}>
-      COMMAND $<TARGET_FILE:${target_name}> > "${output_path}"
+      COMMAND $<TARGET_FILE:${target_name}> 2>&1 | tee "${output_path}"
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT
         "Writing output of ${target_name} to ${output_path}"
     )
-
-    
 endfunction()
 
 
