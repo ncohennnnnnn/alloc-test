@@ -217,7 +217,9 @@ endif()
 option(BUILD_WITH_TSPUMALLOC "Build with thread-safe pool UMPIRE malloc" OFF)
 if (BUILD_WITH_TSPUMALLOC)
   find_package(umpire REQUIRED)
-  add_custom_executable(tspumalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS umpire)
+  add_custom_executable(tspumalloc
+      #DEACTIVATE_BUILTIN_ALLOC
+      LINKLIBS umpire)
 endif()
 
 # # Cache option to enable building with thread-safe pool UMPIRE malloc

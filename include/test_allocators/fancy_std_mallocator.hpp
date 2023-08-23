@@ -17,6 +17,9 @@ ALLOC_TEST_MALLOCATOR_DEFINITION
 template<typename T>
 using test_allocator = fancy_allocator_adaptor<mallocator<T>>;
 
+template<typename T>
+auto make_test_allocator() { return test_allocator<T>{}; }
+
 inline constexpr const char* allocator_name = "fancy_std_malloc";
 
 } // namespace alloc_test

@@ -11,12 +11,13 @@
 #include <zipf_distribution.hpp>
 #include <mem_access.hpp>
 #include <get_rss.hpp>
+#include <progress_bar.hpp>
 
 #include <fmt/core.h>
 #include <fmt/compile.h>
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <array>
 #include <vector>
 
@@ -69,6 +70,7 @@ void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std
             std::size_t allocated_size = base_buff.size()*sizeof(test_bin_t);
             std::size_t allocated_size_max = 0u;
 
+
             // setup: saturate the buffer (50% probablility of each bin being allocated)
             // use the 32 bit random number to efficiently calculate probability
             for (std::size_t i=0; i<num_items/32; ++i) {
@@ -90,6 +92,7 @@ void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std
             thread_rec.rss_max = std::max(thread_rec.rss_max, get_rss());
 
             // main loop: allocate num_iter bins, measure rss 32 times
+            auto pbar = progress_bar(32, 24, 4, thread_id == 0);
             const auto num_iter_by_32 = num_iter >> 5;
             for (int k=0; k<32; ++k) {
                 for (std::size_t j=0; j<num_iter_by_32; ++j) {
@@ -115,6 +118,7 @@ void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std
                     }
                 }
                 thread_rec.rss_max = std::max(thread_rec.rss_max, get_rss());
+                pbar.update();
             }
             alloc.after_main_loop_phase();
             thread_rec.rdtsc_main_loop = __rdtsc();
@@ -136,7 +140,7 @@ void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std
             alloc.after_cleanup_phase();
             thread_rec.inner_dur = t1-t0;
             thread_rec.rss_max = std::max(thread_rec.rss_max, get_rss());
-            fmt::print(FMT_STRING("about to exit thread {:d} ({:d} operations performed) [ctr = {:d}]...\n"), thread_id, num_iter, ctr);
+            fmt::print(FMT_STRING("    about to exit thread {:d} ({:d} operations performed) [ctr = {:d}]...\n"), thread_id, num_iter, ctr);
         }
     );
 }
@@ -162,10 +166,11 @@ void run(Allocator alloc, record& rec, std::size_t num_iter, std::size_t num_ite
     rec.dur = t1-t0;
     const auto d = to_milliseconds(rec.dur);
     fmt::print(FMT_STRING(
-        "{:d} threads made {:d} alloc/dealloc operations in {:.4f} ms ({:.4f} ms per 1 million)\n"),
-        num_threads, num_iter*num_threads, d, d*(1000000.0/(num_items*num_threads)));
+        "    {:d} threads made {:d} alloc/dealloc operations in {:.4f} ms ({:.4f} ms per 1 million)\n"),
+        num_threads, num_iter*num_threads, d, d*(1000000.0/(num_iter*num_threads)));
+
     // loop over every thread's record
-    for (std::size_t i=0; i<num_threads+1; ++i) {
+    for (std::size_t i=0; i<num_threads; ++i) {
         auto& t_rec = rec.thread_records[i];
         rec.cummulative_dur += (to_milliseconds(t_rec.inner_dur) - rec.cummulative_dur)/(i+1);
         rec.allocated_after_setup_size += t_rec.allocated_after_setup_size;
@@ -183,6 +188,9 @@ void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size
 
     // maximum number of threads is capped by compile time constant
     num_threads = std::min(max_threads, num_threads);
+
+
+    fmt::print(FMT_STRING("Running with a maximum of {:d} threads\n"), num_threads);
     
     // rebind allocator to be sure to have value_type == std::uint8_t;
     using allocator = typename std::allocator_traits<Allocator>::template rebind_alloc<std::uint8_t>;
@@ -197,9 +205,12 @@ void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size
 
     // loop over thread configurations
     for (std::size_t n=0; n<num_threads; ++n) {
+        fmt::print(FMT_STRING("\n\n  running real allocator with {:d} threads\n"), n+1);
         run<M>(w_alloc, test_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
-        if constexpr (M!=mem_access_type::check)
+        if constexpr (M!=mem_access_type::check) {
+            fmt::print(FMT_STRING("\n  running fake allocator with {:d} threads\n"), n+1);
             run<M>(f_alloc, fake_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
+        }
     }
 
     // print statistics summary
