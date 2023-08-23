@@ -1,11 +1,14 @@
 #pragma once
 
+#include <mem_access_type.hpp>
+
 #include <cstddef>
 
 #define NB_THREADS @NB_THREADS@
 
 namespace alloc_test {
 
-constexpr std::size_t max_threads = @NB_THREADS@;
+static constexpr std::size_t max_threads = @ALLOC_TEST_MAX_NUM_THREADS@;
+static constexpr auto mat = mem_access_type::@ALLOC_TEST_MEMORY_ACCESS@;
 
 } // namespace alloc_test
