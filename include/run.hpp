@@ -180,7 +180,7 @@ void run(Allocator alloc, record& rec, std::size_t num_iter, std::size_t num_ite
     rec.rss_after_exiting_all_threads = get_rss();
 }
 
-template<mem_access_type M, typename Allocator>
+template<mem_access_type M = mat, typename Allocator>
 void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
     // record storage
     std::array<record, max_threads> test_records;

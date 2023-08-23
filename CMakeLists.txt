@@ -35,8 +35,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# maximum number of threads
+# Maximum number of threads
 set(ALLOC_TEST_MAX_NUM_THREADS 4 CACHE STRING "Number of threads to test with")
+
+# Memory access type
+set(ALLOC_TEST_MEMORY_ACCESS "full" CACHE STRING "Choose the type of memory access.")
+set_property(CACHE ALLOC_TEST_MEMORY_ACCESS PROPERTY STRINGS "none" "single" "full" "check")
 
 # Options for building different tests
 option(ALLOC_TEST_BUILD_ALL_TESTS "Build tests for all allocators" OFF)
