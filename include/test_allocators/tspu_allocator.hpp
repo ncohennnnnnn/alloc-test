@@ -22,7 +22,7 @@ class u_allocator : public umpire::TypedAllocator<T> {
     using const_pointer = typename alloc_traits::const_pointer;
     using void_pointer = typename alloc_traits::void_pointer;
     using const_void_pointer = typename alloc_traits::const_void_pointer;
-    using diffrence_type = typename alloc_traits::difference_type;
+    using difference_type = typename alloc_traits::difference_type;
     using size_type = typename alloc_traits::size_type;
 
     using propagate_on_container_copy_assignment = std::true_type;
@@ -57,7 +57,7 @@ class u_allocator : public umpire::TypedAllocator<T> {
 template<typename Alloc>
 auto adopt_quick_pool(umpire::ResourceManager& rm, Alloc a) {
     const std::string name = a.getName() + "_pool";
-    static constexpr std::uint32_t initial_bytes = 1 << 30;
+    static constexpr std::uint32_t initial_bytes = 1 << 23;
     return rm.makeAllocator<umpire::strategy::QuickPool>(name.c_str(), a, initial_bytes);
 }
 
@@ -117,6 +117,7 @@ auto builder() { return allocator_builder<T>{}; }
 template<typename T>
 auto make_test_allocator() {
     return builder<T>()
+        .add_quick_pool()
         .add_thread_safety()
         .build();
 }
