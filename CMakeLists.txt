@@ -170,6 +170,17 @@ function(add_custom_executable alloc_name)
     )
 endfunction()
 
+# ------------------------------------------------------------------------------
+# include macro for external stuff
+# ------------------------------------------------------------------------------
+include(external)
+
+# ------------------------------------------------------------------------------
+# Build/Download pmimalloc
+# ------------------------------------------------------------------------------
+get_external_project(
+  PROJECT_NAME "pmimalloc" GIT_REPO "git@github.com:ncohennnnnnn/pinned_mimalloc" GIT_TAG "jb-test"
+)
 
 # build different executables if enabled
 
@@ -248,18 +259,20 @@ if (ALLOC_TEST_BUILD_WITH_PMIMALLOC)
     # if(!ALLOC_TEST_BUILD_WITH_MIMALLOC)
     #     find_package(mimalloc REQUIRED)
     # endif()
-    find_library(PMIMALLOC_NONE_LIB pmimalloc_none HINTS home/nathan/build/pmimalloc/bin/libpmimalloc_none.so)
+    # find_library(PMIMALLOC_NONE_LIB pmimalloc_none HINTS home/nathan/build/pmimalloc/bin/libpmimalloc_none.so)
 
     # find mimalloc library
     # find_package(pmimalloc REQUIRED)
 
-    add_custom_executable(pinned_mimalloc 
-                    LINKLIBS 
-                        ${PMIMALLOC_NONE_LIB}
+    message("the lib is ${pmimalloc_target}")
+    add_custom_executable(pmimalloc
+                    LINKLIBS
+                        #${PMIMALLOC_NONE_LIB}
+                        pmimalloc_target
                         # pmimalloc_none
                         # mimalloc
                 )
-    # target_compile_options(pinned_mimalloc PRIVATE -DWITH_MIMALLOC)
+    # target_compile_options(pinned_mimalloc PRIVATE -DALLOC_TEST_PMIMALLOC)
     # target_include_directories(pinned_mimalloc PRIVATE extern/pmimalloc/include)
 
 endif()
