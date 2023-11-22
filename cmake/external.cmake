@@ -6,23 +6,35 @@ include(FetchContent)
 function(get_external_project)
   cmake_parse_arguments(
     ARGS
-    "DO_NOT_BUILD" # options
-    "PROJECT_NAME;GIT_REPO;GIT_TAG;FOLDER_NAME" # 1 value args
+    "DO_NOT_BUILD;PREFER_LOCAL" # options
+    "PROJECT_NAME;GIT_REPO;GIT_TAG;FOLDER_NAME;EXTERN_ROOT" # 1 value args
     "" # multivalued args
     ${ARGN}
   )
 
-  string(TOUPPER ${ARGS_PROJECT_NAME} UPPER_PROJECT)
-  string(TOLOWER ${ARGS_PROJECT_NAME} LOWER_PROJECT)
-  find_package(${ARGS_PROJECT_NAME} QUIET)
+  # is there a setup/installed copy of the library available somewhere
+  if (NOT ARGS_PREFER_LOCAL)
+    find_package(${ARGS_PROJECT_NAME} QUIET)
+  endif()
 
+  # if not, then get a local copy and build it
   if(NOT ${ARGS_PROJECT_NAME}_FOUND)
-    # look in the current source tree
-    if(ARGS_FOLDER_NAME)
-      set(LOCAL_DIR ${PROJECT_SOURCE_DIR}/extern/${ARGS_FOLDER_NAME})
-    else()
-      set(LOCAL_DIR ${PROJECT_SOURCE_DIR}/extern/${ARGS_PROJECT_NAME})
+
+    # default external location
+    set(EXTERN_DIR ${PROJECT_SOURCE_DIR}/extern)
+    if (ARGS_EXTERN_ROOT)
+        set(EXTERN_DIR ${ARGS_EXTERN_ROOT})
     endif()
+
+    # use project name unless folder is specified
+    set(LOCAL_DIR ${EXTERN_DIR}/${ARGS_PROJECT_NAME})
+    if(ARGS_FOLDER_NAME)
+      set(LOCAL_DIR ${EXTERN_DIR}/${ARGS_FOLDER_NAME})
+    endif()
+
+    string(TOUPPER ${ARGS_PROJECT_NAME} UPPER_PROJECT)
+    string(TOLOWER ${ARGS_PROJECT_NAME} LOWER_PROJECT)
+
     if(EXISTS ${LOCAL_DIR}/.git)
       message(STATUS "ext: " "Using ${ARGS_PROJECT_NAME} in (${LOCAL_DIR})")
       # use the source in this directory
@@ -46,7 +58,7 @@ function(get_external_project)
         )
       endif()
     endif()
-    # make location of project visible outside function
+    # make location of project visible outside of this function
     set(${LOWER_PROJECT}_SOURCE_DIR
         "${${LOWER_PROJECT}_SOURCE_DIR}"
         PARENT_SCOPE

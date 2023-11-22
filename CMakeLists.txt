@@ -176,37 +176,51 @@ endfunction()
 include(external)
 
 # ------------------------------------------------------------------------------
-# Build/Download pmimalloc
+# stdmalloc
 # ------------------------------------------------------------------------------
-get_external_project(
-  PROJECT_NAME "pmimalloc" GIT_REPO "git@github.com:ncohennnnnnn/pinned_mimalloc" GIT_TAG "jb-test"
-)
-
-# build different executables if enabled
-
 if (ALLOC_TEST_BUILD_WITH_STDMALLOC)
     add_custom_executable(stdmalloc)
 endif()
 
+# ------------------------------------------------------------------------------
+# pmrmalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_PMRMALLOC)
     add_custom_executable(pmrmalloc)
 endif()
 
+# ------------------------------------------------------------------------------
+# fancystdmalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_FANCYSTDMALLOC)
     add_custom_executable(fancystdmalloc)
 endif()
 
+# ------------------------------------------------------------------------------
 # May need to type the path to libtcmalloc.so and to path/to/tcmalloc/include/ by hand
+# Tcmalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_TCMALLOC)
     find_package(Tcmalloc REQUIRED)
     add_custom_executable(tcmalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS ${Tcmalloc_LIBRARY})
 endif()
 
+# ------------------------------------------------------------------------------
+# mimalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_MIMALLOC)
-    find_package(mimalloc REQUIRED)
+    get_external_project(
+      PROJECT_NAME "mimalloc"
+      GIT_REPO "https://github.com/microsoft/mimalloc"
+      GIT_TAG "master"
+      PREFER_LOCAL
+    )
     add_custom_executable(mimalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS mimalloc)
 endif()
 
+# ------------------------------------------------------------------------------
+# jemalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_JEMALLOC)
     #find_package(Jemalloc REQUIRED)
     find_package(PkgConfig REQUIRED)
@@ -219,64 +233,43 @@ if (ALLOC_TEST_BUILD_WITH_JEMALLOC)
         LINKLIBS ${JEMALLOC_LIBRARIES})
 endif()
 
+# ------------------------------------------------------------------------------
+# hwmalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_HWMALLOC)
-    if(NOT _hwmalloc_already_fetched)
-        set(_hwmalloc_repository "https://github.com/boeschf/hwmalloc.git")
-        set(_hwmalloc_tag "refactoring2")
-        message(STATUS "Fetching HWMALLOC ${_hwmalloc_tag} from ${_hwmalloc_repository}")
-
-      include(FetchContent)
-      fetchcontent_declare(
-        hwmalloc
-        GIT_REPOSITORY ${_hwmalloc_repository}
-        GIT_TAG ${_hwmalloc_tag}
-      )
-      fetchcontent_populate(hwmalloc)
-
-      # -------------------------------------------------------
-      # Compile hwmalloc without NUMA, Boost, logging or device
-      # -------------------------------------------------------
-      set(HWMALLOC_ENABLE_DEVICE FALSE)
-      set(HWMALLOC_ENABLE_LOGGING FALSE)
-      set(HWMALLOC_DEVICE_RUNTIME 0)
-
-      set(_hwmalloc_already_fetched ON CACHE INTERNAL "")
-    endif()
-
-    # create hwmalloc library
-    add_subdirectory(${hwmalloc_SOURCE_DIR} ${hwmalloc_BINARY_DIR})
-
     # find Boost library
     find_package(Boost REQUIRED)
+    # -------------------------------------------------------
+    # Compile hwmalloc without NUMA, Boost, logging or device
+    # -------------------------------------------------------
+    set(HWMALLOC_ENABLE_DEVICE FALSE)
+    set(HWMALLOC_ENABLE_LOGGING FALSE)
+    set(HWMALLOC_DEVICE_RUNTIME 0)
+    get_external_project(
+      PROJECT_NAME "hwmalloc"
+      GIT_REPO "https://github.com/boeschf/hwmalloc.git"
+      GIT_TAG "master"
+    )
 
     add_custom_executable(hwmalloc LINKLIBS hwmalloc Boost::boost)
 endif()
 
+# ------------------------------------------------------------------------------
+# pmimalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_PMIMALLOC)
+    get_external_project(
+      PROJECT_NAME "pmimalloc"
+      GIT_REPO "https://github.com/ncohennnnnnn/pmimalloc.git"
+      GIT_TAG "jb-test"
+    )
 
-    # # create pmimalloc library
-    # add_subdirectory(extern/pmimalloc)
-    # if(!ALLOC_TEST_BUILD_WITH_MIMALLOC)
-    #     find_package(mimalloc REQUIRED)
-    # endif()
-    # find_library(PMIMALLOC_NONE_LIB pmimalloc_none HINTS home/nathan/build/pmimalloc/bin/libpmimalloc_none.so)
-
-    # find mimalloc library
-    # find_package(pmimalloc REQUIRED)
-
-    message("the lib is ${pmimalloc_target}")
-    add_custom_executable(pmimalloc
-                    LINKLIBS
-                        #${PMIMALLOC_NONE_LIB}
-                        pmimalloc_target
-                        # pmimalloc_none
-                        # mimalloc
-                )
-    # target_compile_options(pinned_mimalloc PRIVATE -DALLOC_TEST_PMIMALLOC)
-    # target_include_directories(pinned_mimalloc PRIVATE extern/pmimalloc/include)
-
+    add_custom_executable(pmimalloc LINKLIBS pmimalloc_target)
 endif()
 
+# ------------------------------------------------------------------------------
+# tspumalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_TSPUMALLOC)
     find_package(umpire REQUIRED)
     add_custom_executable(tspumalloc
@@ -284,6 +277,9 @@ if (ALLOC_TEST_BUILD_WITH_TSPUMALLOC)
         LINKLIBS umpire)
 endif()
 
+# ------------------------------------------------------------------------------
+# hoardmalloc
+# ------------------------------------------------------------------------------
 if (ALLOC_TEST_BUILD_WITH_HOARDMALLOC)
     # set(Hoard_DIR "/home/nathan/src/alloc-test-new/extern/Hoard/src")
     find_library(HOARD_LIB NAMES hoard PATHS /home/nathan/src/alloc-test-new/extern/Hoard/src)
