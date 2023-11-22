@@ -1,6 +1,8 @@
 
 #if defined(ALLOC_TEST_STDMALLOC)
 #include <test_allocators/std_mallocator.hpp>
+#elif defined(ALLOC_TEST_PMRMALLOC)
+#include <test_allocators/pmr_mallocator.hpp>
 #elif defined(ALLOC_TEST_FANCYSTDMALLOC)
 #include <test_allocators/fancy_std_mallocator.hpp>
 #elif defined(ALLOC_TEST_HWMALLOC)
@@ -13,6 +15,10 @@
 #include <test_allocators/tc_allocator.hpp>
 #elif defined(ALLOC_TEST_TSPUMALLOC)
 #include <test_allocators/tspu_allocator.hpp>
+#elif defined(ALLOC_TEST_HOARDMALLOC)
+#include <test_allocators/hoard_allocator.hpp>
+#elif defined(ALLOC_TEST_PMIMALLOC)
+#include <test_allocators/pmi_allocator.hpp>
 #endif
 
 #include <mem_access_type.hpp>

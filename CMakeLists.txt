@@ -48,6 +48,9 @@ cmake_dependent_option(
     ALLOC_TEST_BUILD_WITH_STDMALLOC "Build with std::malloc" OFF
     "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_PMRMALLOC "Build with std::pmr::polymorphic_allocator" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
     ALLOC_TEST_BUILD_WITH_FANCYSTDMALLOC "Build with std::malloc using fancy pointers" OFF
     "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 cmake_dependent_option(
@@ -63,7 +66,13 @@ cmake_dependent_option(
     ALLOC_TEST_BUILD_WITH_HWMALLOC "Build with hwmalloc" OFF
     "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_PMIMALLOC "Build with pmimalloc" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
     ALLOC_TEST_BUILD_WITH_TSPUMALLOC "Build with UMPIRE" OFF
+    "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
+cmake_dependent_option(
+    ALLOC_TEST_BUILD_WITH_HOARDMALLOC "Build with HOARD" OFF
     "NOT ALLOC_TEST_BUILD_ALL_TESTS" ON)
 
 # Add your source files
@@ -168,10 +177,15 @@ if (ALLOC_TEST_BUILD_WITH_STDMALLOC)
     add_custom_executable(stdmalloc)
 endif()
 
+if (ALLOC_TEST_BUILD_WITH_PMRMALLOC)
+    add_custom_executable(pmrmalloc)
+endif()
+
 if (ALLOC_TEST_BUILD_WITH_FANCYSTDMALLOC)
     add_custom_executable(fancystdmalloc)
 endif()
 
+# May need to type the path to libtcmalloc.so and to path/to/tcmalloc/include/ by hand
 if (ALLOC_TEST_BUILD_WITH_TCMALLOC)
     find_package(Tcmalloc REQUIRED)
     add_custom_executable(tcmalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS ${Tcmalloc_LIBRARY})
@@ -227,9 +241,39 @@ if (ALLOC_TEST_BUILD_WITH_HWMALLOC)
     add_custom_executable(hwmalloc LINKLIBS hwmalloc Boost::boost)
 endif()
 
+if (ALLOC_TEST_BUILD_WITH_PMIMALLOC)
+
+    # # create pmimalloc library
+    # add_subdirectory(extern/pmimalloc)
+    # if(!ALLOC_TEST_BUILD_WITH_MIMALLOC)
+    #     find_package(mimalloc REQUIRED)
+    # endif()
+    find_library(PMIMALLOC_NONE_LIB pmimalloc_none HINTS home/nathan/build/pmimalloc/bin/libpmimalloc_none.so)
+
+    # find mimalloc library
+    # find_package(pmimalloc REQUIRED)
+
+    add_custom_executable(pinned_mimalloc 
+                    LINKLIBS 
+                        ${PMIMALLOC_NONE_LIB}
+                        # pmimalloc_none
+                        # mimalloc
+                )
+    # target_compile_options(pinned_mimalloc PRIVATE -DWITH_MIMALLOC)
+    # target_include_directories(pinned_mimalloc PRIVATE extern/pmimalloc/include)
+
+endif()
+
 if (ALLOC_TEST_BUILD_WITH_TSPUMALLOC)
-  find_package(umpire REQUIRED)
-  add_custom_executable(tspumalloc
-      #DEACTIVATE_BUILTIN_ALLOC
-      LINKLIBS umpire)
+    find_package(umpire REQUIRED)
+    add_custom_executable(tspumalloc
+        #DEACTIVATE_BUILTIN_ALLOC
+        LINKLIBS umpire)
+endif()
+
+if (ALLOC_TEST_BUILD_WITH_HOARDMALLOC)
+    # set(Hoard_DIR "/home/nathan/src/alloc-test-new/extern/Hoard/src")
+    find_library(HOARD_LIB NAMES hoard PATHS /home/nathan/src/alloc-test-new/extern/Hoard/src)
+    # find_package(Hoard REQUIRED)
+    add_custom_executable(hoardmalloc DEACTIVATE_BUILTIN_ALLOC LINKLIBS ${HOARD_LIB})
 endif()
