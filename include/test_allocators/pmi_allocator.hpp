@@ -10,20 +10,32 @@ namespace alloc_test {
 template<typename T>
 auto make_test_allocator() 
 {
-    std::size_t mem = 1ull << 31;
+/*
+Minimum size for mem : max( 30 , 29 + ceil(log_2(nb_threads)) )
+ ____________________________________________
+|threads | min size      threads | min size  |
+|------------------      ------------------  |
+|   1    |   30            12    |   34      |    
+|   2    |   31            13    |   34      |       
+|   3    |   32            14    |   34      |
+|   4    |   32            15    |   34      |
+|   5    |   33            16    |   34      |
+|   6    |   33            17    |   35      |
+|   7    |   33                  .           |
+|   8    |   33                  .           |
+|   9    |   34                  .           |
+|  10    |   34            32    |   35      |    
+|  11    |   34                              |
+----------------------------------------------
 
-    using res_t = resource <context <not_pinned <host_memory <base>> , backend_none> , ex_mimalloc> ;
-    auto res = std::make_shared<res_t>(mem);
-    // std::cout << "use count of res = " << res.use_count() << std::endl;
+Maximum size for mem : 35 (max of mmap on my machine)
+*/
+    std::size_t mem = 1ull << 32;
+    using res_t   = resource <context <not_pinned <host_memory <base>> , backend_none> , ex_mimalloc> ;
     using alloc_t = pmimallocator<T, res_t>;
+    auto res = std::make_shared<res_t>(mem);
     alloc_t a{res};
-    // std::cout << "use count of res = " << res.use_count() << std::endl;
     return a;
-
-    // resource_builder rb;
-    // rb.use_mimalloc();
-    // rb.on_host(mem);
-    // return pmimallocator<T, decltype(rb.build())>{rb};
 }
 
 inline constexpr const char* allocator_name = "pmi_malloc";
