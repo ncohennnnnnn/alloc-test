@@ -1,16 +1,16 @@
 #pragma once
 
-#include <allocator.hpp>
-
 #include <cstdint>
 #include <string>
+//
+#include <pmimalloc/allocator.hpp>
 
 namespace alloc_test {
 
-template<typename T>
-auto make_test_allocator() 
-{
-/*
+    template <typename T>
+    auto make_test_allocator()
+    {
+        /*
 Minimum size for mem : max( 30 , 29 + ceil(log_2(nb_threads)) )
          ____________________________________________
         |threads | min size      threads | min size  |
@@ -30,7 +30,7 @@ Minimum size for mem : max( 30 , 29 + ceil(log_2(nb_threads)) )
 
 Maximum size for mem : 35 (max of mmap on my machine)
 */
-    std::size_t mem = 1ull << 30;
+    std::size_t mem = 1ull << 32;
     using res_t   = simple<resource <context <not_pinned <host_memory <base>> , backend_none> , ext_mimalloc>> ;
     using alloc_t = pmimallocator<T, res_t>;
     auto res = std::make_shared<res_t>(mem);
@@ -38,6 +38,6 @@ Maximum size for mem : 35 (max of mmap on my machine)
     return a;
 }
 
-inline constexpr const char* allocator_name = "pmi_malloc";
+    inline constexpr const char* allocator_name = "pmi_malloc";
 
-} // namespace alloc_test
+}    // namespace alloc_test
