@@ -25,7 +25,7 @@
 
 namespace alloc_test {
 
-inline threading::task_system ts(max_threads, true);
+// inline threading::task_system ts(max_threads, true);
 
 // Struct which holds the allocated memory segment
 template<typename Allocator>
@@ -37,7 +37,7 @@ struct test_bin {
 };
 
 template<mem_access_type M, typename WrappedAllocator>
-void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
+void run_parallel(threading::task_system& ts, WrappedAllocator alloc, record& rec, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
     threading::parallel_for::apply(num_threads, &ts,
         [alloc, rec_ptr = &rec, num_iter, num_items, max_size_exp](int thread_id) mutable {
             // get the thread_spefic record
@@ -147,19 +147,19 @@ void run_parallel(WrappedAllocator alloc, record& rec, std::size_t num_iter, std
 
 // In order to restart on thread 0 we run a number of empty tasks to reset the round-robin
 // notification queues
-void reset_round_robin(std::size_t num_launched_tasks) {
+void reset_round_robin(threading::task_system& ts, std::size_t num_launched_tasks) {
     threading::task_group g(&ts);
     for (std::size_t j=num_launched_tasks; j<max_threads; ++j) g.run([](){});
     g.wait();
 }
 
 template<mem_access_type M, typename Allocator>
-void run(Allocator alloc, record& rec, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
+void run(threading::task_system& ts, Allocator alloc, record& rec, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
     // run the test with num_threads
     auto t0 = now();
-    run_parallel<M>(alloc, rec, num_iter, num_items, max_size_exp, num_threads);
+    run_parallel<M>(ts, alloc, rec, num_iter, num_items, max_size_exp, num_threads);
     auto t1 = now();
-    reset_round_robin(num_threads);
+    reset_round_robin(ts, num_threads);
 
     // accumulate statistics
     rec.num_threads = num_threads;
@@ -182,6 +182,9 @@ void run(Allocator alloc, record& rec, std::size_t num_iter, std::size_t num_ite
 
 template<mem_access_type M = mat, typename Allocator>
 void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size_t max_size_exp, std::size_t num_threads) {
+    // initialise task system
+    threading::task_system ts(max_threads, true);
+
     // record storage
     std::array<record, max_threads> test_records;
     std::array<record, max_threads> fake_records;
@@ -206,10 +209,10 @@ void run(Allocator alloc, std::size_t num_iter, std::size_t num_items, std::size
     // loop over thread configurations
     for (std::size_t n=0; n<num_threads; ++n) {
         fmt::print(FMT_STRING("\n\n  running real allocator with {:d} threads\n"), n+1);
-        run<M>(w_alloc, test_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
+        run<M>(ts, w_alloc, test_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
         if constexpr (M!=mem_access_type::check) {
             fmt::print(FMT_STRING("\n  running fake allocator with {:d} threads\n"), n+1);
-            run<M>(f_alloc, fake_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
+            run<M>(ts, f_alloc, fake_records[n], num_iter, num_items/(n+1), max_size_exp, n+1);
         }
     }
 
